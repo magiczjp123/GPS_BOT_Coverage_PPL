@@ -1,0 +1,44 @@
+{
+    /*
+    {
+    "version": "0.1.0",
+    "command": "g++",
+    "isShellCommand": true,
+    "showOutput": "always",
+    "args": ["-g", "main.cpp", "-o", "mosse", "-I/usr/local/include/opencv", "-I/usr/local/include", "-L/usr/local/lib",
+     "-lopencv_shape", "-lopencv_stitching", "-lopencv_objdetect", "-lopencv_superres", "-lopencv_videostab", "-lopencv_calib3d",
+     "-lopencv_features2d", "-lopencv_highgui", "-lopencv_videoio", "-lopencv_imgcodecs", "-lopencv_video", "-lopencv_photo", 
+     "-lopencv_ml", "-lopencv_imgproc", "-lopencv_flann", "-lopencv_core", 
+     "-I/home/colm/Qt/5.8/gcc_64/include/", "-L/home/<username>/Qt/5.8/gcc_64/lib", "-lQt5Core", "-licui18n", "-licuuc", "-licudata"]
+    }
+    */
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "taskName": "ppl_build",
+            "command": "g++",
+            "args": [
+                 "ppl.cpp",
+                 "-o",
+                 "${workspaceRoot}/ppl",
+                 "-I/usr/local/include/opencv",
+                 "-I/usr/local/include",
+                 "-L/usr/local/lib",
+                 "-lopencv_highgui",
+                 "-lopencv_imgproc",
+                 "-lopencv_core",
+                 "-I/home/colm/Qt/5.8/gcc_64/include/", "-L/home/<username>/Qt/5.8/gcc_64/lib", "-lQt5Core", "-licui18n", "-licuuc", "-licudata",
+                 "-g",
+                 "-Og",
+                 "-std=c++11"
+            ],
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
