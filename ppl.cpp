@@ -99,16 +99,19 @@ int main(int argc, char ** argv){
     map_size_x = src.cols;
     map_size_y = src.rows;
 
+    // Blur image
     Mat blurred_img(src.size(), CV_8UC1);
     blur( src_threshold, blurred_img, Size(3,3));
-    namedWindow("Blurred image", WINDOW_AUTOSIZE);
-    imshow("Blurred image", blurred_img);
+    // namedWindow("Blurred image", WINDOW_AUTOSIZE);
+    // imshow("Blurred image", blurred_img);
 
+    // Apply canny edge algorithm to the map image
     Mat canny_img(src.size(), CV_8UC1);
     Canny(blurred_img, canny_img, 80, 100*2, 3);
-    namedWindow("Canny src image", WINDOW_AUTOSIZE);
-    imshow("Canny src image", canny_img);
+    // namedWindow("Canny src image", WINDOW_AUTOSIZE);
+    // imshow("Canny src image", canny_img);
     
+    // Find contours of map canny image
     Mat contours_img(src.rows,src.cols,CV_8UC1,Scalar(255));
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
@@ -139,8 +142,8 @@ int main(int argc, char ** argv){
     cout << " size of cells_v is " << cells_v.size() << endl;
     
     // cell_decompose_result = print_cells(cells_v);
-    namedWindow("image contours before");
-    imshow("image contours before", masked_img);
+    // namedWindow("image contours before");
+    // imshow("image contours before", masked_img);
     erase_small_cells(10);
     cells_v = cell_decompose();  
     cout << " size of cells_v is " << cells_v.size() << endl;
@@ -149,21 +152,21 @@ int main(int argc, char ** argv){
     for(int i = 0; i < cells_v.size(); ++i){
         cells_v[i].area = get_cell_area(cells_v[i]);
     }
-    Mat map_before_remove = print_cells();
+    // Mat map_before_remove = print_cells();
     erase_tiny_cells(10);
     cell_pixel_init();
     
     cell_decompose_result = print_cells();
     
     cout << " size of cells_v is " << cells_v.size() << endl;
-    cout << " the value of cell 2 . pixel " << cells_v[2].pixel[0][0] << endl;
+    // cout << " the value of cell 2 . pixel " << cells_v[2].pixel[0][0] << endl;
    // cout << " count for small cells is " << count << endl;
     namedWindow("image contours after");
     imshow("image contours after", masked_img);
     // imwrite("map_masked.png", masked_img);
     namedWindow("Cells");
     setMouseCallback("Cells", cell_img_mouse_callback, (void*)&cell_decompose_result);
-    imshow("Cells before remove", map_before_remove);
+    // imshow("Cells before remove", map_before_remove);
     imshow("Cells",cell_decompose_result);
 
     coverage_path_planning();
@@ -171,19 +174,33 @@ int main(int argc, char ** argv){
     cout << " cell[0].edge_lt.back() is " << cells_v[0].edge_lt.back() << endl;
     Mat draw_path = cell_decompose_result.clone();
     namedWindow("Path");
-    
+    for(int i = 248; i < 253+4; ++i){
+        cout << " the " << i << " th of robot.path is" << robot.path[i] << endl;
+    }
+    cout << " the 97 th cell edge_rt[0] " << cells_v[97].edge_rt[0] << endl;
     
     int index_cell = 1;
     for(int i = 0; i < robot.path.size() -1 ; ++i){
         // circle(draw_path,Point(robot.path[i].x+4,robot.path[i].y+4),4.5,Scalar(255,255,255),-1);
         if(i+1 != begin_of_cells[index_cell] - 1){
-            line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4),Scalar(255,255,255));
-            imshow("Path", draw_path);
+            // line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4),Scalar(255,255,255));
+            LineIterator it_line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4), 8);
+            LineIterator it_line2 = it_line;
+            ++it_line2;
+            for(int j = 0; j < it_line.count-1; j++, ++it_line, ++it_line2){
+                
+                // circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
+                line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
+                imshow("Path", draw_path);
+                waitKey(5);
+            }
         }else if(i+1 == begin_of_cells[index_cell] - 1){
             ++index_cell;
         }
-        waitKey(100);
+        // waitKey(100);
     }
+    
+
     
     // imwrite("map_cells.png", cell_decompose_result);
     
@@ -477,16 +494,22 @@ void coverage_path_planning(){
         cout << " start_f is " << start_f << endl;
         if(start_f == 1){
             begin_of_cells.push_back(robot.path.end() - robot.path.begin());
+            cout << " the begin of t current cell is " << begin_of_cells.back() << endl;
             //*************************** New version algorithm **************
             int vertical_traj_num = it->edge_lt.size()/robot_size;
             
             //======================= find below position ===========
             Point pt_left_most = it->edge_rt[0];
-            
+            if(begin_of_cells.back() == 251){
+                cout << " (1) pt_left_most is " << pt_left_most << endl;
+            }
             for(i = 0; i < robot_size/2; ++i){
                 if(it->edge_rt[i].y > pt_left_most.y){
                     pt_left_most = it->edge_rt[i];
                 }
+            }
+            if(begin_of_cells.back() == 251){
+                cout << " (2) pt_left_most is " << pt_left_most << endl;
             }
             pt_left_most.y = pt_left_most.y - robot_size;
             while(pt_left_most.y > it->edge_lt[pt_left_most.x - path_pt.x].y){
@@ -495,13 +518,22 @@ void coverage_path_planning(){
                 }
                 --pt_left_most.y;
             }
+            if(begin_of_cells.back() == 251){
+                cout << " (3) pt_left_most is " << pt_left_most << endl;
+            }
             // cout << " the current cell left_most pt is " << pt_left_most << endl;
             
             if(vertical_traj_num == 0){
                 robot.path.push_back(pt_left_most);
+                if(begin_of_cells.back() == 251){
+                    cout << " (4) pt_left_most is " << robot.path.back() << endl;
+                }
                 
             }if(vertical_traj_num > 0){
                 robot.path.push_back(pt_left_most);
+                if(begin_of_cells.back() == 251){
+                    cout << " (5) pt_left_most is " << robot.path.back() << endl;
+                }
                 Point pt_upper, pt_lower;
                 
                 for(i = 0; i < vertical_traj_num; ++i){
@@ -547,7 +579,7 @@ void coverage_path_planning(){
     
     }   
 }
-int robot_move_up(){
+/* int robot_move_up(){
     int flag = 1;
     int i;
     int j;
@@ -663,7 +695,7 @@ int robot_move_down(){
     }
 
     return 0;
-}
+} */
 void erase_tiny_cells(int min_width){
     /* for(int i = 0; i < cells_v.size(); ++i){
         if(cells_v[i].edge_rt[0].y - cells_v[i].edge_lt[0].y -1 <= min_width || cells_v[i].edge_rt.back().y - cells_v[i].edge_lt.back().y -1 <= min_width){
@@ -683,12 +715,12 @@ void erase_tiny_cells(int min_width){
                 ++count;
             }
         }
-        cout <<" the current cell is " << it-cells_v.begin() << " the count is " << count << endl;
-        cout << " the size of it->edge_lt.size() is " << it->edge_lt.size() << endl;
-        cout << " size to remove cell is " << (float)count/it->edge_lt.size() << endl;
+        // cout <<" the current cell is " << it-cells_v.begin() << " the count is " << count << endl;
+        // cout << " the size of it->edge_lt.size() is " << it->edge_lt.size() << endl;
+        // cout << " size to remove cell is " << (float)count/it->edge_lt.size() << endl;
         if(((float)(count/it->edge_lt.size()) > (float)0.2) && (count > 0)){
             
-            cout << " cell removed " << endl;
+            // cout << " cell removed " << endl;
             cells_v.erase(it);
         }
     }
