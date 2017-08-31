@@ -1,3 +1,4 @@
+// to complie g++ -std=c++11 ppl.cpp `pkg-config --libs--cflags opencv` -o ppl
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
