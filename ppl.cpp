@@ -1,9 +1,10 @@
-// to complie g++ -std=c++11 ppl.cpp `pkg-config --libs--cflags opencv` -o ppl
+// to complie g++ -std=c++11 ppl.cpp `pkg-config --libs --cflags opencv` -o ppl
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <string>
+#define Pi 3.1415926
 using std::string;
 using namespace cv;
 using namespace std;
@@ -62,6 +63,7 @@ int robot_move_up();
 int robot_move_right();
 int robot_move_down();
 int check_map_rect(Point pt);
+Point2f rotatePoint(Point p1, float angle);
 //============================= Global var =======================
 Mat src;
 Mat masked_img;
@@ -73,6 +75,8 @@ int robot_size = 9;        // size of robot set to 10 x 10;
 int min_entry_width = 8;
 robot robot;
 vector<int> begin_of_cells;
+Point2f img_center;
+float angle;
 //================================================================
 int main(int argc, char ** argv){
     if (argc != 1){
@@ -89,7 +93,8 @@ int main(int argc, char ** argv){
 
     // map image rotation and edge sharpening
     Mat src_rotate,src_threshold;
-    src_rotate = rotate_img(src,-10.5);
+    angle = -10.5;
+    src_rotate = rotate_img(src,angle);
 
     // map image thresholding
     threshold(src_rotate,src_threshold,210,255,0);
@@ -99,7 +104,8 @@ int main(int argc, char ** argv){
 
     map_size_x = src.cols;
     map_size_y = src.rows;
-
+    img_center.x = map_size_x/2+0.5;
+    img_center.y = map_size_y/2+0.5;
     // Blur image
     Mat blurred_img(src.size(), CV_8UC1);
     blur( src_threshold, blurred_img, Size(3,3));
@@ -179,7 +185,7 @@ int main(int argc, char ** argv){
         cout << " the " << i << " th of robot.path is" << robot.path[i] << endl;
     }
     cout << " the 97 th cell edge_rt[0] " << cells_v[97].edge_rt[0] << endl;
-    
+    cout << " the rotated point is " << rotatePoint(Point(134,276),-angle) << endl;;
     int index_cell = 1;
     for(int i = 0; i < robot.path.size() -1 ; ++i){
         // circle(draw_path,Point(robot.path[i].x+4,robot.path[i].y+4),4.5,Scalar(255,255,255),-1);
@@ -188,12 +194,14 @@ int main(int argc, char ** argv){
             LineIterator it_line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4), 8);
             LineIterator it_line2 = it_line;
             ++it_line2;
-            for(int j = 0; j < it_line.count-1; j++, ++it_line, ++it_line2){
+            // For line print, j < it_line.cont - 1;
+            // For circle print, j < it_line.cont
+            for(int j = 0; j < it_line.count; j++, ++it_line, ++it_line2){
                 
-                // circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
-                line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
+                circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
+                // line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
                 imshow("Path", draw_path);
-                waitKey(5);
+                waitKey(1);
             }
         }else if(i+1 == begin_of_cells[index_cell] - 1){
             ++index_cell;
@@ -487,7 +495,7 @@ void coverage_path_planning(){
             }
             ++path_pt.y;
         }
-        if(start_f == 1 && it->edge_lt.size() < robot_size/1.5){
+        if(start_f == 1 && it->edge_lt.size() < robot_size*0.4){
             robot.path.pop_back();
             start_f = 0;
         }
@@ -497,7 +505,7 @@ void coverage_path_planning(){
             begin_of_cells.push_back(robot.path.end() - robot.path.begin());
             cout << " the begin of t current cell is " << begin_of_cells.back() << endl;
             //*************************** New version algorithm **************
-            int vertical_traj_num = it->edge_lt.size()/robot_size;
+            float vertical_traj_num = (float)it->edge_lt.size()/robot_size;
             
             //======================= find below position ===========
             Point pt_left_most = it->edge_rt[0];
@@ -522,15 +530,15 @@ void coverage_path_planning(){
             if(begin_of_cells.back() == 251){
                 cout << " (3) pt_left_most is " << pt_left_most << endl;
             }
-            // cout << " the current cell left_most pt is " << pt_left_most << endl;
+            cout << " the current cell vertical_traj_num " << vertical_traj_num << endl;
             
-            if(vertical_traj_num == 0){
+            if(vertical_traj_num < 1+0.3){
                 robot.path.push_back(pt_left_most);
                 if(begin_of_cells.back() == 251){
                     cout << " (4) pt_left_most is " << robot.path.back() << endl;
                 }
                 
-            }if(vertical_traj_num > 0){
+            }if(vertical_traj_num > 1+0.3){
                 robot.path.push_back(pt_left_most);
                 if(begin_of_cells.back() == 251){
                     cout << " (5) pt_left_most is " << robot.path.back() << endl;
@@ -580,123 +588,6 @@ void coverage_path_planning(){
     
     }   
 }
-/* int robot_move_up(){
-    int flag = 1;
-    int i;
-    int j;
-    for(i = 0; i < robot_size; ++i){
-        for(j = 0; j < robot_size; ++j){
-            if((int)masked_img.at<uchar>(robot.path.back().y-robot_size+i, robot.path.back().x+j) != 255){
-                flag = 0;
-            }
-        }
-    }
-    if(flag == 1){
-        robot.path.push_back(Point(robot.path.back().x ,robot.path.back().y-robot_size));
-        robot.update_pose(robot.path.back());
-        return robot_size;
-    }
-    if(flag == 0){
-        flag = 1;
-        int count = robot_size;
-        while(count>0){
-            for(i = 0; i < robot_size; ++i){
-                for(j = 0; j < robot_size; ++j){
-                    if((int)masked_img.at<uchar>(robot.path.back().y-count+i, robot.path.back().x+j) != 255){
-                        flag = 0;
-                    }
-                }
-            }
-            if(flag == 1){
-                robot.path.push_back(Point(robot.path.back().x ,robot.path.back().y-count));
-                robot.update_pose(robot.path.back());
-                return count;
-            }
-            flag = 1;
-            --count;
-        }
-    }
-
-    return 0;
-}
-int robot_move_right(){
-    int flag = 1;
-    int i;
-    int j;
-    for(i = 0; i < robot_size; ++i){
-        for(j = 0; j < robot_size; ++j){
-            if((int)masked_img.at<uchar>(robot.path.back().y+i, robot.path.back().x+robot_size+j) != 255){
-                flag = 0;
-            }
-        }
-    }
-    if(flag == 1){
-        robot.path.push_back(Point(robot.path.back().x+robot_size ,robot.path.back().y));
-        robot.update_pose(robot.path.back());
-        return robot_size;
-    }
-    if(flag == 0){
-        flag = 1;
-        int count = robot_size;
-        while(count>0){
-            for(i = 0; i < robot_size; ++i){
-                for(j = 0; j < robot_size; ++j){
-                    if((int)masked_img.at<uchar>(robot.path.back().y+i, robot.path.back().x+count+j) != 255){
-                        flag = 0;
-                    }
-                }
-            }
-            if(flag == 1){
-                robot.path.push_back(Point(robot.path.back().x+count ,robot.path.back().y));
-                robot.update_pose(robot.path.back());
-                return count;
-            }
-            flag = 1;
-            --count;
-        }
-    }
-
-    return 0;
-}
-int robot_move_down(){
-    int flag = 1;
-    int i;
-    int j;
-    for(i = 0; i < robot_size; ++i){
-        for(j = 0; j < robot_size; ++j){
-            if((int)masked_img.at<uchar>(robot.path.back().y+robot_size+i, robot.path.back().x+j) != 255){
-                flag = 0;
-            }
-        }
-    }
-    if(flag == 1){
-        robot.path.push_back(Point(robot.path.back().x ,robot.path.back().y+robot_size));
-        robot.update_pose(robot.path.back());
-        return robot_size;
-    }
-    if(flag == 0){
-        flag = 1;
-        int count = robot_size;
-        while(count>0){
-            for(i = 0; i < robot_size; ++i){
-                for(j = 0; j < robot_size; ++j){
-                    if((int)masked_img.at<uchar>(robot.path.back().y+count+i, robot.path.back().x+j) != 255){
-                        flag = 0;
-                    }
-                }
-            }
-            if(flag == 1){
-                robot.path.push_back(Point(robot.path.back().x ,robot.path.back().y+count));
-                robot.update_pose(robot.path.back());
-                return count;
-            }
-            flag = 1;
-            --count;
-        }
-    }
-
-    return 0;
-} */
 void erase_tiny_cells(int min_width){
     /* for(int i = 0; i < cells_v.size(); ++i){
         if(cells_v[i].edge_rt[0].y - cells_v[i].edge_lt[0].y -1 <= min_width || cells_v[i].edge_rt.back().y - cells_v[i].edge_lt.back().y -1 <= min_width){
@@ -740,4 +631,11 @@ int check_map_rect(Point pt){
 
 
     return 1;
+}
+Point2f rotatePoint(Point p1, float angle){
+    Point2f result;
+
+    result.x = ((p1.x - img_center.x) * cos(angle*(Pi/180))) - ((p1.y - img_center.y) * sin(angle*(Pi/180))) + img_center.x;
+    result.y = ((p1.x - img_center.x) * sin(angle*(Pi/180))) - ((p1.y - img_center.y) * cos(angle*(Pi/180))) + img_center.y;
+    return result;
 }

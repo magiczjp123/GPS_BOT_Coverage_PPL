@@ -2,6 +2,7 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 #include <iostream>
+#define Pi 3.1415926
 using namespace cv;
 using namespace std;
 
@@ -29,7 +30,7 @@ int main(){
     std::cout << '\n';
     return 0; */
     int max = 10;
-    int num = 1;
+    // int num = 1;
     int i = 0;
     int j = 0;
     int f = 0;
@@ -47,7 +48,9 @@ int main(){
         
     }
     v_i.push_back(2);
-    cout << " 9 / 1.5 is " << 10 / 1.5 << endl;
+    float num = 1+9*0.2;
+    Point2f pt(736/2-0.5,480/2-0.5);
+    cout << " pt is " << 8-0.5 << endl;
 
     
     
@@ -807,3 +810,120 @@ void cornerHarris_demo( int, void* )
          
                          
               
+/* int robot_move_up(){
+    int flag = 1;
+    int i;
+    int j;
+    for(i = 0; i < robot_size; ++i){
+        for(j = 0; j < robot_size; ++j){
+            if((int)masked_img.at<uchar>(robot.path.back().y-robot_size+i, robot.path.back().x+j) != 255){
+                flag = 0;
+            }
+        }
+    }
+    if(flag == 1){
+        robot.path.push_back(Point(robot.path.back().x ,robot.path.back().y-robot_size));
+        robot.update_pose(robot.path.back());
+        return robot_size;
+    }
+    if(flag == 0){
+        flag = 1;
+        int count = robot_size;
+        while(count>0){
+            for(i = 0; i < robot_size; ++i){
+                for(j = 0; j < robot_size; ++j){
+                    if((int)masked_img.at<uchar>(robot.path.back().y-count+i, robot.path.back().x+j) != 255){
+                        flag = 0;
+                    }
+                }
+            }
+            if(flag == 1){
+                robot.path.push_back(Point(robot.path.back().x ,robot.path.back().y-count));
+                robot.update_pose(robot.path.back());
+                return count;
+            }
+            flag = 1;
+            --count;
+        }
+    }
+
+    return 0;
+}
+int robot_move_right(){
+    int flag = 1;
+    int i;
+    int j;
+    for(i = 0; i < robot_size; ++i){
+        for(j = 0; j < robot_size; ++j){
+            if((int)masked_img.at<uchar>(robot.path.back().y+i, robot.path.back().x+robot_size+j) != 255){
+                flag = 0;
+            }
+        }
+    }
+    if(flag == 1){
+        robot.path.push_back(Point(robot.path.back().x+robot_size ,robot.path.back().y));
+        robot.update_pose(robot.path.back());
+        return robot_size;
+    }
+    if(flag == 0){
+        flag = 1;
+        int count = robot_size;
+        while(count>0){
+            for(i = 0; i < robot_size; ++i){
+                for(j = 0; j < robot_size; ++j){
+                    if((int)masked_img.at<uchar>(robot.path.back().y+i, robot.path.back().x+count+j) != 255){
+                        flag = 0;
+                    }
+                }
+            }
+            if(flag == 1){
+                robot.path.push_back(Point(robot.path.back().x+count ,robot.path.back().y));
+                robot.update_pose(robot.path.back());
+                return count;
+            }
+            flag = 1;
+            --count;
+        }
+    }
+
+    return 0;
+}
+int robot_move_down(){
+    int flag = 1;
+    int i;
+    int j;
+    for(i = 0; i < robot_size; ++i){
+        for(j = 0; j < robot_size; ++j){
+            if((int)masked_img.at<uchar>(robot.path.back().y+robot_size+i, robot.path.back().x+j) != 255){
+                flag = 0;
+            }
+        }
+    }
+    if(flag == 1){
+        robot.path.push_back(Point(robot.path.back().x ,robot.path.back().y+robot_size));
+        robot.update_pose(robot.path.back());
+        return robot_size;
+    }
+    if(flag == 0){
+        flag = 1;
+        int count = robot_size;
+        while(count>0){
+            for(i = 0; i < robot_size; ++i){
+                for(j = 0; j < robot_size; ++j){
+                    if((int)masked_img.at<uchar>(robot.path.back().y+count+i, robot.path.back().x+j) != 255){
+                        flag = 0;
+                    }
+                }
+            }
+            if(flag == 1){
+                robot.path.push_back(Point(robot.path.back().x ,robot.path.back().y+count));
+                robot.update_pose(robot.path.back());
+                return count;
+            }
+            flag = 1;
+            --count;
+        }
+    }
+
+    return 0;
+} */
