@@ -457,6 +457,9 @@ void coverage_path_planning(){
     for(auto it = cells_v.begin(); it != cells_v.end(); ++it){
         int start_f = 0;
         path_pt = it->edge_lt[0];
+        if(it->edge_rt[0].y - it->edge_lt[0].y < 4){
+            path_pt = it->edge_lt[1];
+        }
         ++path_pt.y;
         while(path_pt.y < it->edge_rt[0].y){
             if(check_map_rect(path_pt)){
@@ -466,352 +469,83 @@ void coverage_path_planning(){
             }
             ++path_pt.y;
         }
+        if(start_f == 1 && it->edge_lt.size() < robot_size/1.5){
+            robot.path.pop_back();
+            start_f = 0;
+        }
         cout <<" the current cell is " << it-cells_v.begin() << " Area is " << it->area << endl;
         cout << " start_f is " << start_f << endl;
         if(start_f == 1){
             begin_of_cells.push_back(robot.path.end() - robot.path.begin());
             //*************************** New version algorithm **************
+            int vertical_traj_num = it->edge_lt.size()/robot_size;
             
+            //======================= find below position ===========
+            Point pt_left_most = it->edge_rt[0];
             
-            
-            
-            
-            
-            
-            //****************************************************************
-            int finish = 0;
-            int count = 20;
-            
-            // generate path for downward movement
-            while(finish == 0){
-            // while(count > 0){
-                //============================ move down ===================
-                // while(robot_move_down() != 0){};
-                int move_down_R = 1;
-                // int move_down_L = 1;
-                /* while(robot_move_down() == 0 && move_down == 1){
-                    for(i = 0; i < 10; ++i){
-                        robot.path.push_back(Point(robot.path.back().x+i,robot.path.back().y));
-                        if(robot_move_down() == 0){
-                            robot.path.pop_back();
-                        }else if(robot_move_down() != 0){
-                            break;
-                        }
-                    }
-                    if(i == 10){
-                        move_down = 0;
-                    }
-                } */
-                int try_count = 4;
-                while(move_down_R == 1){
-                    if(robot_move_down() == 0){
-                        for(i = 0; i < 10; ++i){
-                            robot.path.push_back(Point(robot.path.back().x+i,robot.path.back().y));
-                            if(robot_move_down() == 0){
-                                robot.path.pop_back();
-                            }else if(robot_move_down() != 0){
-                                // robot.path.erase(robot.path.end()-2);
-                                Point tmp(robot.path.back().x,robot.path.back().y);
-                                robot.path.pop_back();
-                                robot.path.pop_back();
-                                robot.path.push_back(tmp);
-                                try_count = try_count - i;
-                                break;
-                            }
-                        }
-                        if(try_count < 0 || i == 10){
-                            move_down_R = 0;
-                        }
-                        /* for(i = 0; i < 10; ++i){
-                            robot.path.push_back(Point(robot.path.back().x-i,robot.path.back().y));
-                            if(robot_move_down() == 0){
-                                robot.path.pop_back();
-                            }else if(robot_move_down() != 0){
-                                // robot.path.erase(robot.path.end()-2);
-                                Point tmp(robot.path.back().x,robot.path.back().y);
-                                robot.path.pop_back();
-                                robot.path.pop_back();
-                                robot.path.push_back(tmp);
-                                break;
-                            }
-                        }
-                        if(i == 10){
-                            move_down_L = 0;
-                        } */
-                    }
-                    for(i = 0; i < it->edge_rt.size(); ++i){
-                        if(it->edge_rt[i].x == robot.path.back().x){
-                            break;
-                        }
-                    }
-                    if(robot.path.back().y >= it->edge_rt[i].y - robot_size){
-                        Point tmp(robot.path.back().x, it->edge_rt[i].y - robot_size);
-                        robot.path.pop_back();
-                        robot.path.push_back(tmp);
-                        break;
-                    }
+            for(i = 0; i < robot_size/2; ++i){
+                if(it->edge_rt[i].y > pt_left_most.y){
+                    pt_left_most = it->edge_rt[i];
                 }
-                --count;
-                //============================ finish count ===================
-                if(robot.path.back().x >= it->edge_lt.back().x-robot_size || robot.path.back().x < it->edge_lt.front().x){
-                    finish = 1;
-                    cout << " finish is " << finish << endl;
+            }
+            pt_left_most.y = pt_left_most.y - robot_size;
+            while(pt_left_most.y > it->edge_lt[pt_left_most.x - path_pt.x].y){
+                if(check_map_rect(pt_left_most)){
                     break;
                 }
-                //============================ move right ===================
-                int move_right_U =1;
-                int move_right_D =1;
-                int move_count = 9;
-                int robot_move_right_result;
-                // while(move_right != 10 || robot.path.back().x < it->edge_lt.x-10){
-                while((move_right_U ==1 || move_right_D == 1) ){        
-                    /* for(i = 0; i < 10; ++i){
-                        robot.path.push_back(Point(robot.path.back().x,robot.path.back().y-i));
-                        if(robot_move_right()> 5 || robot.path.back().x == it->edge_lt.back().x-8){
-                            move_right = 0;
-                            cout << "+++++++++++++" << endl;
-                            break;
-                        }else{
-                            robot.path.pop_back();
-                        }
-                    } */
-                    
-                    robot_move_right_result = robot_move_right();
-                    move_count = move_count - robot_move_right_result;
-                    if(move_count <= 0){
-                        Point tmp(robot.path.back().x+move_count,robot.path.back().y);
-                        robot.path.pop_back();
-                        robot.path.push_back(tmp);
-                        break;
-                    }
-                    if(move_count > 0){
-                        for(i = 0; i < 10; ++i){
-                            robot.path.push_back(Point(robot.path.back().x,robot.path.back().y+i));
-                            robot_move_right_result = robot_move_right();
-                            move_count = move_count - robot_move_right_result;
-                            if(robot_move_right_result == 0){
-                                robot.path.pop_back();
-                            }else if(robot_move_right_result != 0){
-                                if(move_count <= 0){
-                                    Point tmp(robot.path.back().x+move_count,robot.path.back().y);
-                                    robot.path.pop_back();
-                                    robot.path.pop_back();
-                                    robot.path.push_back(tmp);
-                                    break;
-                                }
-                            }
-                            
-                        }
-                        if(i == 10){
-                            move_right_D = 0;
-                        }
-                        
-                        for(i = 0; i < 10; ++i){
-                            robot.path.push_back(Point(robot.path.back().x,robot.path.back().y-i));
-                            robot_move_right_result = robot_move_right();
-                            move_count = move_count - robot_move_right_result;
-                            if(robot_move_right_result == 0){
-                                robot.path.pop_back();
-                            }else if(robot_move_right_result != 0){
-                                if(move_count <= 0){
-                                    Point tmp(robot.path.back().x+move_count,robot.path.back().y);
-                                    robot.path.pop_back();
-                                    robot.path.pop_back();
-                                    robot.path.push_back(tmp);
-                                    break;
-                                }
-                            }
-                            
-                        }
-                        if(i == 10){
-                            move_right_U = 0;
-                        }
-                    }
-                }
-                if(move_count == 9){
-                    finish = 1;
-                    cout << " finish is " << finish << endl;
-                    break;
-                }
+                --pt_left_most.y;
+            }
+            // cout << " the current cell left_most pt is " << pt_left_most << endl;
+            
+            if(vertical_traj_num == 0){
+                robot.path.push_back(pt_left_most);
                 
-                --count;
-                /* while(robot_move_up() !=0){};
-                move_up = 1;
-                while(robot_move_up() == 0 && move_up == 1){
-                    for(i = 0; i < 10; ++i){
-                        robot.path.push_back(Point(robot.path.back().x+i,robot.path.back().y));
-                        if(robot_move_up() == 0){
-                            robot.path.pop_back();
-                        }else if(robot_move_up() != 0){
+            }if(vertical_traj_num > 0){
+                robot.path.push_back(pt_left_most);
+                Point pt_upper, pt_lower;
+                
+                for(i = 0; i < vertical_traj_num; ++i){
+                    pt_upper.x = path_pt.x+robot_size*(i+1);
+                    if(pt_upper.x > it->edge_lt.back().x - robot_size - 1){
+                        pt_upper.x = it->edge_lt.back().x - robot_size - 1;
+                    }
+                    pt_upper.y = it->edge_lt[pt_upper.x - path_pt.x].y+1;
+                    while(pt_upper.y < it->edge_rt[pt_upper.x - path_pt.x].y){
+                        if(check_map_rect(pt_upper)){
                             break;
                         }
+                        ++pt_upper.y;
                     }
-                    if(i == 10){
-                        move_up = 0;
-                    }
-                }*/
-                //============================ move up ===================
-                int move_up_R = 1;
-                int move_up_L = 1;
-                try_count = 4;
-                /* while(robot_move_down() == 0 && move_down == 1){
-                    for(i = 0; i < 10; ++i){
-                        robot.path.push_back(Point(robot.path.back().x+i,robot.path.back().y));
-                        if(robot_move_down() == 0){
-                            robot.path.pop_back();
-                        }else if(robot_move_down() != 0){
-                            break;
-                        }
-                    }
-                    if(i == 10){
-                        move_down = 0;
-                    }
-                } */
-                while(move_up_R == 1){
-                    if(robot_move_up() == 0){
-                        for(i = 0; i < 10; ++i){
-                            robot.path.push_back(Point(robot.path.back().x+i,robot.path.back().y));
-                            if(robot_move_up() == 0){
-                                robot.path.pop_back();
-                            }else if(robot_move_up() != 0){
-                                // robot.path.erase(robot.path.end()-2);
-                                Point tmp(robot.path.back().x,robot.path.back().y);
-                                robot.path.pop_back();
-                                robot.path.pop_back();
-                                robot.path.push_back(tmp);
-                                try_count = try_count - i;
-                                break;
-                            }
-                        }
-                        if(try_count < 0 || i == 10){
-                            move_up_R = 0;
-                        }
-                        /* for(i = 0; i < 10; ++i){
-                            robot.path.push_back(Point(robot.path.back().x-i,robot.path.back().y));
-                            if(robot_move_up() == 0){
-                                robot.path.pop_back();
-                            }else if(robot_move_up() != 0){
-                                robot.path.erase(robot.path.end()-2);
-                                break;
-                            }
-                        }
-                        if(i == 10){
-                            move_up_L = 0;
-                        } */
-                    }
-                    for(i = 0; i < it->edge_lt.size(); ++i){
-                        if(it->edge_lt[i].x == robot.path.back().x){
-                            break;
-                        }
-                    }
-                    if(robot.path.back().y <= it->edge_lt[i].y){
-                        Point tmp(robot.path.back().x, it->edge_lt[i].y);
-                        robot.path.pop_back();
-                        robot.path.push_back(tmp);
-                        break;
-                    }
-                }
 
-                //============================ finish count ===================
-                if(robot.path.back().x >= it->edge_lt.back().x-robot_size*2 || robot.path.back().x < it->edge_lt.front().x){
-                    finish = 1;
-                    break;
-                }
-                --count;
-                //============================ move right ===================
-                move_right_U =1;
-                move_right_D =1;
-                move_count = 9;
-                // while(move_right != 10 || robot.path.back().x < it->edge_lt.x-10){
-                while((move_right_U ==1 || move_right_D == 1) ){        
-                    /* for(i = 0; i < 10; ++i){
-                        robot.path.push_back(Point(robot.path.back().x,robot.path.back().y-i));
-                        if(robot_move_right()> 5 || robot.path.back().x == it->edge_lt.back().x-8){
-                            move_right = 0;
-                            cout << "+++++++++++++" << endl;
+                    pt_lower.x = path_pt.x+robot_size*(i+1);
+                    if(pt_lower.x > it->edge_rt.back().x - robot_size - 1){
+                        pt_lower.x = it->edge_lt.back().x - robot_size - 1;
+                    }
+                    pt_lower.y = it->edge_rt[pt_lower.x - path_pt.x].y-robot_size;
+                    while(pt_lower.y > it->edge_lt[pt_lower.x - path_pt.x].y){
+                        if(check_map_rect(pt_lower)){
                             break;
-                        }else{
-                            robot.path.pop_back();
                         }
-                    } */
-                    
-                    robot_move_right_result = robot_move_right();
-                    move_count = move_count - robot_move_right_result;
-                    if(move_count <= 0){
-                        Point tmp(robot.path.back().x+move_count,robot.path.back().y);
-                        robot.path.pop_back();
-                        robot.path.push_back(tmp);
-                        break;
+                        --pt_lower.y;
                     }
-                    if(move_count > 0){
-                        for(i = 0; i < 10; ++i){
-                            robot.path.push_back(Point(robot.path.back().x,robot.path.back().y-i));
-                            robot_move_right_result = robot_move_right();
-                            move_count = move_count - robot_move_right_result;
-                            if(robot_move_right_result == 0){
-                                robot.path.pop_back();
-                            }else if(robot_move_right_result != 0){
-                                if(move_count <= 0){
-                                    Point tmp(robot.path.back().x+move_count,robot.path.back().y);
-                                    robot.path.pop_back();
-                                    robot.path.pop_back();
-                                    robot.path.push_back(tmp);
-                                    break;
-                                }
-                            }
-                        }
-                        if(i == 10){
-                            move_right_U = 0;
-                        }
-                        for(i = 0; i < 10; ++i){
-                            robot.path.push_back(Point(robot.path.back().x,robot.path.back().y+i));
-                            robot_move_right_result = robot_move_right();
-                            move_count = move_count - robot_move_right_result;
-                            if(robot_move_right_result == 0){
-                                robot.path.pop_back();
-                            }else if(robot_move_right_result != 0){
-                                if(move_count <= 0){
-                                    Point tmp(robot.path.back().x+move_count,robot.path.back().y);
-                                    robot.path.pop_back();
-                                    robot.path.pop_back();
-                                    robot.path.push_back(tmp);
-                                    break;
-                                }
-                            }
-                        }
-                        if(i == 10){
-                            move_right_D = 0;
-                        }
+                    if(pt_upper.x != 0 && pt_upper.y != 0 && pt_lower.x != 0 && pt_lower.y != 0){
+                        cout << "pt_upper and pt_lower calculate success! " << endl;
+                    }else{
+                        cout << "pt_upper and pt_lower calculate failed! " << endl;
                     }
-                }
-                if(move_count == 9){
-                    finish = 1;
-                    cout << " finish is " << finish << endl;
-                    break;
-                }
-                /* move_right =1;
-                // while(move_right != 10 || robot.path.back().x < it->edge_lt.x-10){
-                while(move_right ==1){        
-                    for(i = 0; i < 10; ++i){
-                        robot.path.push_back(Point(robot.path.back().x,robot.path.back().y+i));
-                        if(robot_move_right() > 5 || robot.path.back().x == it->edge_lt.back().x-8){
-                            move_right = 0;
-                            break;
-                        }else{
-                            robot.path.pop_back();
-                        }
+                    if(i%2 == 0){
+                        robot.path.push_back(pt_lower);
+                        robot.path.push_back(pt_upper);     
                     }
-                } */
-                --count;
-         
-                         
-                
+                    if(i%2 == 1){
+                        robot.path.push_back(pt_upper);
+                        robot.path.push_back(pt_lower);
+                    }
+                }       
             }
         }
     
-    }
-
-    
+    }   
 }
 int robot_move_up(){
     int flag = 1;

@@ -42,14 +42,12 @@ int main(){
             break;
         }
     } */
-    for(i = 0; i < 10; ++i){
+    for(i = 0; i < 4; ++i){
+        // cout << i << " mod 2 is " << i%2 << endl;
         
-        if(i == 4){
-            break;
-        }
     }
     v_i.push_back(2);
-    cout << " v_i end - begin " << v_i.end() - v_i.begin() << endl;
+    cout << " 9 / 1.5 is " << 10 / 1.5 << endl;
 
     
     
@@ -572,3 +570,240 @@ void cornerHarris_demo( int, void* )
         }
         
     } */
+
+
+
+    //********************** Old ppl algorithm ******************************************
+            /* int finish = 0;
+            int count = 20;
+            
+            // generate path for downward movement
+            while(finish == 0){
+            // while(count > 0){
+                //============================ move down ===================
+                // while(robot_move_down() != 0){};
+                int move_down_R = 1;
+                // int move_down_L = 1;
+                
+                int try_count = 4;
+                while(move_down_R == 1){
+                    if(robot_move_down() == 0){
+                        for(i = 0; i < 10; ++i){
+                            robot.path.push_back(Point(robot.path.back().x+i,robot.path.back().y));
+                            if(robot_move_down() == 0){
+                                robot.path.pop_back();
+                            }else if(robot_move_down() != 0){
+                                // robot.path.erase(robot.path.end()-2);
+                                Point tmp(robot.path.back().x,robot.path.back().y);
+                                robot.path.pop_back();
+                                robot.path.pop_back();
+                                robot.path.push_back(tmp);
+                                try_count = try_count - i;
+                                break;
+                            }
+                        }
+                        if(try_count < 0 || i == 10){
+                            move_down_R = 0;
+                        }
+                        
+                    }
+                    for(i = 0; i < it->edge_rt.size(); ++i){
+                        if(it->edge_rt[i].x == robot.path.back().x){
+                            break;
+                        }
+                    }
+                    if(robot.path.back().y >= it->edge_rt[i].y - robot_size){
+                        Point tmp(robot.path.back().x, it->edge_rt[i].y - robot_size);
+                        robot.path.pop_back();
+                        robot.path.push_back(tmp);
+                        break;
+                    }
+                }
+                --count;
+                //============================ finish count ===================
+                if(robot.path.back().x >= it->edge_lt.back().x-robot_size || robot.path.back().x < it->edge_lt.front().x){
+                    finish = 1;
+                    cout << " finish is " << finish << endl;
+                    break;
+                }
+                //============================ move right ===================
+                int move_right_U =1;
+                int move_right_D =1;
+                int move_count = 9;
+                int robot_move_right_result;
+                // while(move_right != 10 || robot.path.back().x < it->edge_lt.x-10){
+                while((move_right_U ==1 || move_right_D == 1) ){        
+                    
+                    
+                    robot_move_right_result = robot_move_right();
+                    move_count = move_count - robot_move_right_result;
+                    if(move_count <= 0){
+                        Point tmp(robot.path.back().x+move_count,robot.path.back().y);
+                        robot.path.pop_back();
+                        robot.path.push_back(tmp);
+                        break;
+                    }
+                    if(move_count > 0){
+                        for(i = 0; i < 10; ++i){
+                            robot.path.push_back(Point(robot.path.back().x,robot.path.back().y+i));
+                            robot_move_right_result = robot_move_right();
+                            move_count = move_count - robot_move_right_result;
+                            if(robot_move_right_result == 0){
+                                robot.path.pop_back();
+                            }else if(robot_move_right_result != 0){
+                                if(move_count <= 0){
+                                    Point tmp(robot.path.back().x+move_count,robot.path.back().y);
+                                    robot.path.pop_back();
+                                    robot.path.pop_back();
+                                    robot.path.push_back(tmp);
+                                    break;
+                                }
+                            }
+                            
+                        }
+                        if(i == 10){
+                            move_right_D = 0;
+                        }
+                        
+                        for(i = 0; i < 10; ++i){
+                            robot.path.push_back(Point(robot.path.back().x,robot.path.back().y-i));
+                            robot_move_right_result = robot_move_right();
+                            move_count = move_count - robot_move_right_result;
+                            if(robot_move_right_result == 0){
+                                robot.path.pop_back();
+                            }else if(robot_move_right_result != 0){
+                                if(move_count <= 0){
+                                    Point tmp(robot.path.back().x+move_count,robot.path.back().y);
+                                    robot.path.pop_back();
+                                    robot.path.pop_back();
+                                    robot.path.push_back(tmp);
+                                    break;
+                                }
+                            }
+                            
+                        }
+                        if(i == 10){
+                            move_right_U = 0;
+                        }
+                    }
+                }
+                if(move_count == 9){
+                    finish = 1;
+                    cout << " finish is " << finish << endl;
+                    break;
+                }
+                
+                --count;
+                
+                //============================ move up ===================
+                int move_up_R = 1;
+                int move_up_L = 1;
+                try_count = 4;
+                
+                while(move_up_R == 1){
+                    if(robot_move_up() == 0){
+                        for(i = 0; i < 10; ++i){
+                            robot.path.push_back(Point(robot.path.back().x+i,robot.path.back().y));
+                            if(robot_move_up() == 0){
+                                robot.path.pop_back();
+                            }else if(robot_move_up() != 0){
+                                // robot.path.erase(robot.path.end()-2);
+                                Point tmp(robot.path.back().x,robot.path.back().y);
+                                robot.path.pop_back();
+                                robot.path.pop_back();
+                                robot.path.push_back(tmp);
+                                try_count = try_count - i;
+                                break;
+                            }
+                        }
+                        if(try_count < 0 || i == 10){
+                            move_up_R = 0;
+                        }
+                        
+                    }
+                    for(i = 0; i < it->edge_lt.size(); ++i){
+                        if(it->edge_lt[i].x == robot.path.back().x){
+                            break;
+                        }
+                    }
+                    if(robot.path.back().y <= it->edge_lt[i].y){
+                        Point tmp(robot.path.back().x, it->edge_lt[i].y);
+                        robot.path.pop_back();
+                        robot.path.push_back(tmp);
+                        break;
+                    }
+                }
+
+                //============================ finish count ===================
+                if(robot.path.back().x >= it->edge_lt.back().x-robot_size*2 || robot.path.back().x < it->edge_lt.front().x){
+                    finish = 1;
+                    break;
+                }
+                --count;
+                //============================ move right ===================
+                move_right_U =1;
+                move_right_D =1;
+                move_count = 9;
+                // while(move_right != 10 || robot.path.back().x < it->edge_lt.x-10){
+                while((move_right_U ==1 || move_right_D == 1) ){        
+                    
+                    
+                    robot_move_right_result = robot_move_right();
+                    move_count = move_count - robot_move_right_result;
+                    if(move_count <= 0){
+                        Point tmp(robot.path.back().x+move_count,robot.path.back().y);
+                        robot.path.pop_back();
+                        robot.path.push_back(tmp);
+                        break;
+                    }
+                    if(move_count > 0){
+                        for(i = 0; i < 10; ++i){
+                            robot.path.push_back(Point(robot.path.back().x,robot.path.back().y-i));
+                            robot_move_right_result = robot_move_right();
+                            move_count = move_count - robot_move_right_result;
+                            if(robot_move_right_result == 0){
+                                robot.path.pop_back();
+                            }else if(robot_move_right_result != 0){
+                                if(move_count <= 0){
+                                    Point tmp(robot.path.back().x+move_count,robot.path.back().y);
+                                    robot.path.pop_back();
+                                    robot.path.pop_back();
+                                    robot.path.push_back(tmp);
+                                    break;
+                                }
+                            }
+                        }
+                        if(i == 10){
+                            move_right_U = 0;
+                        }
+                        for(i = 0; i < 10; ++i){
+                            robot.path.push_back(Point(robot.path.back().x,robot.path.back().y+i));
+                            robot_move_right_result = robot_move_right();
+                            move_count = move_count - robot_move_right_result;
+                            if(robot_move_right_result == 0){
+                                robot.path.pop_back();
+                            }else if(robot_move_right_result != 0){
+                                if(move_count <= 0){
+                                    Point tmp(robot.path.back().x+move_count,robot.path.back().y);
+                                    robot.path.pop_back();
+                                    robot.path.pop_back();
+                                    robot.path.push_back(tmp);
+                                    break;
+                                }
+                            }
+                        }
+                        if(i == 10){
+                            move_right_D = 0;
+                        }
+                    }
+                }
+                if(move_count == 9){
+                    finish = 1;
+                    cout << " finish is " << finish << endl;
+                    break;
+                }
+                
+                --count; */
+         
+                         
+              
