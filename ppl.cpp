@@ -44,12 +44,11 @@ public:
         path.push_back(pt);
     }
 };
-
 //============================= Function define ==================
 vector<Point> find_intersection_line(Mat map, vector<Point> line);
 vector<Point> yslice_gen(int x_current, int map_size_y);
 vector<cells> cell_decompose();
-Mat rotate_img(Mat src, double angle);
+Mat rotate_img(Mat src, double asngle);
 int point_check(Point pt1, Point pt2);
 int match_intersect(const cells &c1, vector<Point> intersect);
 Mat print_cells();
@@ -77,6 +76,7 @@ robot robot;
 vector<int> begin_of_cells;
 Point2f img_center;
 float angle;
+
 //================================================================
 int main(int argc, char ** argv){
     if (argc != 1){

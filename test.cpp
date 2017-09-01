@@ -45,23 +45,49 @@ int main(){
     } */
     
     // cout << " pt is " << 8-0.5 << endl;
+    
     Mat logo = imread("company_logo.jpg", IMREAD_COLOR);
-    namedWindow("logo");
-    imshow("logo", logo);
+    // namedWindow("logo");
+    // imshow("logo", logo);
     cout << " size of logo is " << logo.size() << endl;
     
     Rect r(logo.cols/2. - 236, logo.rows/2. - 204, 236*2,208*2);
     Mat roi(logo,r);
 
-    imshow("logo roi", roi);
+    
     Mat roi_resize;
     resize(roi,roi_resize,Size(9,9));
     
     cout << "logo_roi_resize size is " << roi_resize.size() << endl;
-    imshow("logo resize_ed", roi_resize);
+    // imshow("logo resize_ed", roi_resize);
     
+    // imwrite("company_logo_small.png", roi_resize);
+    // roi_resize = imread("company_logo_small.png");
+    imwrite("company_logo_small.png", roi);
+    roi = imread("company_logo_small.png");
+    Mat logo_trans(roi_resize.rows,roi_resize.cols,CV_8UC4);
+    
+    Vec3b intensity;
+    Vec4b intensity1;
+    for(i = 0; i < roi_resize.cols; ++i){
+        for(j = 0; j < roi_resize.rows; ++j){
+            intensity = roi_resize.at<Vec3b>(i,j);
+            /* if(roi_resize.at<Vec4b>(i,j) == Scalar(255,255,255,0)){
+                cout << " the pixel is " << i << " " << j << endl;
+            } */
+            logo_trans.at<Vec4b>(i,j) = Scalar((int)intensity.val[0],(int)intensity.val[1],(int)intensity.val[2],0);
+            intensity1 = logo_trans.at<Vec4b>(i,j);
+            cout << " the 4 channels are " << (int)intensity1.val[0] << " " << (int)intensity1.val[1] << " " << (int)intensity1.val[2] << " " << intensity1.val[3] << "+++++++" << endl;
+            
+        }
+    }
+    logo_trans.copyTo(roi.rowRange(192,192+roi_resize.cols).colRange(54,54+roi_resize.rows));
+    
+    imshow("company_logo_small", roi_resize);
+    
+    imshow("logo roi", roi);
     waitKey(0);
-
+    
 
 
 
