@@ -43,17 +43,29 @@ int main(){
             break;
         }
     } */
-    for(i = 0; i < 4; ++i){
-        // cout << i << " mod 2 is " << i%2 << endl;
-        
-    }
-    v_i.push_back(2);
-    float num = 1+9*0.2;
-    Point2f pt(736/2-0.5,480/2-0.5);
-    cout << " pt is " << 8-0.5 << endl;
+    
+    // cout << " pt is " << 8-0.5 << endl;
+    Mat logo = imread("company_logo.jpg", IMREAD_COLOR);
+    namedWindow("logo");
+    imshow("logo", logo);
+    cout << " size of logo is " << logo.size() << endl;
+    
+    Rect r(logo.cols/2. - 236, logo.rows/2. - 204, 236*2,208*2);
+    Mat roi(logo,r);
 
+    imshow("logo roi", roi);
+    Mat roi_resize;
+    resize(roi,roi_resize,Size(9,9));
     
+    cout << "logo_roi_resize size is " << roi_resize.size() << endl;
+    imshow("logo resize_ed", roi_resize);
     
+    waitKey(0);
+
+
+
+
+    return 0;
 }
 
 

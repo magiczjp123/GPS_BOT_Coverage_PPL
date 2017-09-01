@@ -99,8 +99,8 @@ int main(int argc, char ** argv){
     // map image thresholding
     threshold(src_rotate,src_threshold,210,255,0);
     cout << "src size is " << src.size() << "src (20,20) color is =" << (int)src.at<uchar>(20,20)<< endl;
-    namedWindow("Source image", WINDOW_AUTOSIZE);
-    imshow("Source image", src);
+    /* namedWindow("Source image", WINDOW_AUTOSIZE);
+    imshow("Source image", src); */
 
     map_size_x = src.cols;
     map_size_y = src.rows;
@@ -185,8 +185,18 @@ int main(int argc, char ** argv){
         cout << " the " << i << " th of robot.path is" << robot.path[i] << endl;
     }
     cout << " the 97 th cell edge_rt[0] " << cells_v[97].edge_rt[0] << endl;
-    cout << " the rotated point is " << rotatePoint(Point(134,276),-angle) << endl;;
     int index_cell = 1;
+    // Mat dst;
+    cout << " rotated Point is " << rotatePoint(Point2f(347,247),-angle) << endl;
+    Mat src_color;
+    namedWindow("Source image", WINDOW_AUTOSIZE);
+    cvtColor(src,src_color,CV_GRAY2BGR);
+    imshow("Source image", src_color);
+    Mat logo = imread("company_logo.jpg", IMREAD_COLOR);
+    Rect r(logo.cols/2. - 236, logo.rows/2. - 204, 236*2,208*2);
+    Mat roi_logo(logo,r);
+    Mat roi_resize;
+    resize(roi_logo,roi_resize,Size(9,9));
     for(int i = 0; i < robot.path.size() -1 ; ++i){
         // circle(draw_path,Point(robot.path[i].x+4,robot.path[i].y+4),4.5,Scalar(255,255,255),-1);
         if(i+1 != begin_of_cells[index_cell] - 1){
@@ -194,14 +204,24 @@ int main(int argc, char ** argv){
             LineIterator it_line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4), 8);
             LineIterator it_line2 = it_line;
             ++it_line2;
+            LineIterator it_line3(draw_path, rotatePoint(Point(robot.path[i].x+4,robot.path[i].y+4),-angle), rotatePoint(Point(robot.path[i+1].x+4,robot.path[i+1].y+4),-angle), 8);
+            LineIterator it_line4 = it_line3;
+            ++it_line4;
+            LineIterator it_line5(draw_path, rotatePoint(Point(robot.path[i].x,robot.path[i].y),-angle), rotatePoint(Point(robot.path[i+1].x,robot.path[i+1].y),-angle), 8);
+            
             // For line print, j < it_line.cont - 1;
             // For circle print, j < it_line.cont
-            for(int j = 0; j < it_line.count; j++, ++it_line, ++it_line2){
+            for(int j = 0; j < it_line.count; j++, ++it_line, ++it_line2, ++it_line3, ++it_line5){
                 
                 circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
+                circle(src_color,it_line3.pos(),4.5,Scalar(215,142,34),-1);
                 // line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
+                Mat src_color_with_logo = src_color.clone();
+                roi_resize.copyTo(src_color_with_logo.rowRange(it_line5.pos().y,it_line5.pos().y + 9).colRange(it_line5.pos().x,it_line5.pos().x+9));
+                cout << " it_line5.pos() is " << it_line5.pos() << endl;
                 imshow("Path", draw_path);
-                waitKey(1);
+                imshow("Source image",src_color_with_logo);
+                if(waitKey(1) >=0) return 0;
             }
         }else if(i+1 == begin_of_cells[index_cell] - 1){
             ++index_cell;
@@ -635,7 +655,15 @@ int check_map_rect(Point pt){
 Point2f rotatePoint(Point p1, float angle){
     Point2f result;
 
-    result.x = ((p1.x - img_center.x) * cos(angle*(Pi/180))) - ((p1.y - img_center.y) * sin(angle*(Pi/180))) + img_center.x;
+    /* result.x = ((p1.x - img_center.x) * cos(angle*(Pi/180))) - ((p1.y - img_center.y) * sin(angle*(Pi/180))) + img_center.x;
     result.y = ((p1.x - img_center.x) * sin(angle*(Pi/180))) - ((p1.y - img_center.y) * cos(angle*(Pi/180))) + img_center.y;
+    return result; */
+    
+    Point2f pt(src.cols/2., src.rows/2.);
+    Mat r = getRotationMatrix2D(pt, angle,1.0);
+    // warpAffine(src,dst,r,Size(src.cols,src.rows));
+    result.x = r.at<double>(0,0)*p1.x + r.at<double>(0,1)*p1.y + r.at<double>(0,2);
+    result.y = r.at<double>(1,0)*p1.x + r.at<double>(1,1)*p1.y + r.at<double>(1,2);
+    
     return result;
 }
