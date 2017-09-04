@@ -19,6 +19,7 @@ public:
     vector<Point> edge_lo;
     vector<Point> edge_lt;
     vector<Point> edge_rt;
+    vector<Point> path;
     vector<vector<int> > pixel;
     vector<int> connected;
     vector<int> branch;
@@ -177,27 +178,33 @@ int main(int argc, char ** argv){
     imshow("Cells",cell_decompose_result);
 
     coverage_path_planning();
-    cout << " the size of robot path is " << robot.path.size() << endl;
-    cout << " cell[0].edge_lt.back() is " << cells_v[0].edge_lt.back() << endl;
     Mat draw_path = cell_decompose_result.clone();
     namedWindow("Path");
-    for(int i = 248; i < 253+4; ++i){
-        cout << " the " << i << " th of robot.path is" << robot.path[i] << endl;
-    }
-    cout << " the 97 th cell edge_rt[0] " << cells_v[97].edge_rt[0] << endl;
     int index_cell = 1;
     // Mat dst;
-    cout << " rotated Point is " << rotatePoint(Point2f(347,247),-angle) << endl;
     Mat src_color;
     namedWindow("Source image", WINDOW_AUTOSIZE);
     cvtColor(src,src_color,CV_GRAY2BGR);
     imshow("Source image", src_color);
+    int empty_cell_num = 0;
+    for(int i = 0; i < cells_v.size(); ++i){
+        cout << " the " << i << " th cell" << endl;
+        for(int j = 0; j < cells_v[i].path.size(); ++j){
+            cout << " the " << i << " th cell path point is " << cells_v[i].path[j] << endl;
+        }
+        if(cells_v[i].path.size() == 0){
+            ++empty_cell_num;
+        }
+    }
+    cout << "一共 " << cells_v.size() << " 个分区，已清扫 " << cells_v.size() - empty_cell_num << " 个分区" << endl;
+
     Mat logo = imread("company_logo.jpg", IMREAD_COLOR);
     Rect r(logo.cols/2. - 236, logo.rows/2. - 204, 236*2,208*2);
     Mat roi_logo(logo,r);
     Mat roi_resize;
     resize(roi_logo,roi_resize,Size(9,9));
-    for(int i = 0; i < robot.path.size() -1 ; ++i){
+    // Iterate through robot.path to print out robot path, skip begin of cells path
+    /* for(int i = 0; i < robot.path.size() -1 ; ++i){
         // circle(draw_path,Point(robot.path[i].x+4,robot.path[i].y+4),4.5,Scalar(255,255,255),-1);
         if(i+1 != begin_of_cells[index_cell] - 1){
             // line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4),Scalar(255,255,255));
@@ -218,7 +225,7 @@ int main(int argc, char ** argv){
                 // line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
                 Mat src_color_with_logo = src_color.clone();
                 roi_resize.copyTo(src_color_with_logo.rowRange(it_line5.pos().y,it_line5.pos().y + 9).colRange(it_line5.pos().x,it_line5.pos().x+9));
-                cout << " it_line5.pos() is " << it_line5.pos() << endl;
+                // cout << " it_line5.pos() is " << it_line5.pos() << endl;
                 imshow("Path", draw_path);
                 imshow("Source image",src_color_with_logo);
                 if(waitKey(1) >=0) return 0;
@@ -226,7 +233,35 @@ int main(int argc, char ** argv){
         }else if(i+1 == begin_of_cells[index_cell] - 1){
             ++index_cell;
         }
+        
         // waitKey(100);
+    } */
+    for(auto it = cells_v.begin(); it != cells_v.end(); ++it){
+        if(it->path.size() > 1){
+            for(auto it2 = it->path.begin(); it2 != it->path.end()-1; ++it2){
+                LineIterator it_line(draw_path, Point(it2->x+4,it2->y+4), Point((it2+1)->x+4,(it2+1)->y+4), 8);
+                LineIterator it_line2 = it_line;
+                ++it_line2;
+                LineIterator it_line3(draw_path, rotatePoint(Point(it2->x+4,it2->y+4),-angle), rotatePoint(Point((it2+1)->x+4,(it2+1)->y+4),-angle), 8);
+                LineIterator it_line4 = it_line3;
+                ++it_line4;
+                LineIterator it_line5(draw_path, rotatePoint(*it2,-angle), rotatePoint(*(it2+1),-angle), 8);
+                for(int j = 0; j < it_line.count; j++, ++it_line, ++it_line2, ++it_line3, ++it_line5){
+                    
+                    // circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
+                    circle(src_color,it_line3.pos(),4,Scalar(215,142,34),-1);
+                    line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
+                    Mat draw_path_with_shape = draw_path.clone();
+                    circle(draw_path_with_shape,it_line.pos(),4,Scalar(0,0,0),-1);
+                    Mat src_color_with_logo = src_color.clone();
+                    roi_resize.copyTo(src_color_with_logo.rowRange(it_line5.pos().y,it_line5.pos().y + 9).colRange(it_line5.pos().x,it_line5.pos().x+9));
+                    // cout << " it_line5.pos() is " << it_line5.pos() << endl;
+                    imshow("Path", draw_path_with_shape);
+                    imshow("Source image",src_color_with_logo);
+                    if(waitKey(1) >=0) return 0;
+                }
+            }
+        }
     }
     
 
@@ -502,6 +537,7 @@ void coverage_path_planning(){
     int j;
     for(auto it = cells_v.begin(); it != cells_v.end(); ++it){
         int start_f = 0;
+        // find the start position of robot path in current cell through check map
         path_pt = it->edge_lt[0];
         if(it->edge_rt[0].y - it->edge_lt[0].y < 4){
             path_pt = it->edge_lt[1];
@@ -509,37 +545,42 @@ void coverage_path_planning(){
         ++path_pt.y;
         while(path_pt.y < it->edge_rt[0].y){
             if(check_map_rect(path_pt)){
+                it->path.push_back(path_pt);
                 robot.robot_pose_init(path_pt);
                 start_f = 1;
                 break;
             }
             ++path_pt.y;
         }
+        // if cell width is < robot_size * 0.4 then it will not be cleaned
         if(start_f == 1 && it->edge_lt.size() < robot_size*0.4){
             robot.path.pop_back();
+            it->path.pop_back();
             start_f = 0;
         }
         cout <<" the current cell is " << it-cells_v.begin() << " Area is " << it->area << endl;
         cout << " start_f is " << start_f << endl;
         if(start_f == 1){
             begin_of_cells.push_back(robot.path.end() - robot.path.begin());
-            cout << " the begin of t current cell is " << begin_of_cells.back() << endl;
-            //*************************** New version algorithm **************
+            // cout << " the begin of t current cell is " << begin_of_cells.back() << endl;
             float vertical_traj_num = (float)it->edge_lt.size()/robot_size;
             
             //======================= find below position ===========
+            // look for left most down most corner of cell map
             Point pt_left_most = it->edge_rt[0];
-            if(begin_of_cells.back() == 251){
+
+            /* if(begin_of_cells.back() == 251){
                 cout << " (1) pt_left_most is " << pt_left_most << endl;
-            }
+            } */
             for(i = 0; i < robot_size/2; ++i){
                 if(it->edge_rt[i].y > pt_left_most.y){
                     pt_left_most = it->edge_rt[i];
                 }
             }
-            if(begin_of_cells.back() == 251){
+            /* if(begin_of_cells.back() == 251){
                 cout << " (2) pt_left_most is " << pt_left_most << endl;
-            }
+            } */
+            // offset corner to robot size and check to fit robot size on map
             pt_left_most.y = pt_left_most.y - robot_size;
             while(pt_left_most.y > it->edge_lt[pt_left_most.x - path_pt.x].y){
                 if(check_map_rect(pt_left_most)){
@@ -547,60 +588,93 @@ void coverage_path_planning(){
                 }
                 --pt_left_most.y;
             }
-            if(begin_of_cells.back() == 251){
+            /* if(begin_of_cells.back() == 251){
                 cout << " (3) pt_left_most is " << pt_left_most << endl;
             }
-            cout << " the current cell vertical_traj_num " << vertical_traj_num << endl;
+            cout << " the current cell vertical_traj_num " << vertical_traj_num << endl; */
             
             if(vertical_traj_num < 1+0.3){
                 robot.path.push_back(pt_left_most);
-                if(begin_of_cells.back() == 251){
+                it->path.push_back(pt_left_most);
+                /* if(begin_of_cells.back() == 251){
                     cout << " (4) pt_left_most is " << robot.path.back() << endl;
-                }
+                } */
                 
             }if(vertical_traj_num > 1+0.3){
                 robot.path.push_back(pt_left_most);
-                if(begin_of_cells.back() == 251){
+                it->path.push_back(pt_left_most);
+                /* if(begin_of_cells.back() == 251){
                     cout << " (5) pt_left_most is " << robot.path.back() << endl;
-                }
+                } */
                 Point pt_upper, pt_lower;
-                
-                for(i = 0; i < vertical_traj_num; ++i){
+                int settle_f = 0;
+                for(i = 0; i < floor(vertical_traj_num); ++i){
+                    // upper point for strip take point at start_pt's x value
+                    // take border - 9 instead if over come
                     pt_upper.x = path_pt.x+robot_size*(i+1);
-                    if(pt_upper.x > it->edge_lt.back().x - robot_size - 1){
-                        pt_upper.x = it->edge_lt.back().x - robot_size - 1;
+                    if(pt_upper.x > it->edge_lt.back().x - robot_size+1){
+                        pt_upper.x = it->edge_lt.back().x - robot_size+1;
                     }
+                    // upper point y value takes edge_lt at upper point's x
                     pt_upper.y = it->edge_lt[pt_upper.x - path_pt.x].y+1;
-                    while(pt_upper.y < it->edge_rt[pt_upper.x - path_pt.x].y){
-                        if(check_map_rect(pt_upper)){
-                            break;
+                    if(check_map_rect(pt_upper) == 0){
+                        settle_f =0;
+                        j = 0;
+                        while(j < 9){
+                            pt_upper.x = pt_upper.x - j;
+                            pt_upper.y = it->edge_lt[pt_upper.x - path_pt.x].y+1;
+                            while(pt_upper.y < it->edge_rt[pt_upper.x - path_pt.x].y){
+                                if(check_map_rect(pt_upper)){
+                                    settle_f = 1;
+                                    break;
+                                }
+                                ++pt_upper.y;
+                            }
+                            if(settle_f){
+                                break;
+                            }
+                            ++j;
                         }
-                        ++pt_upper.y;
                     }
 
                     pt_lower.x = path_pt.x+robot_size*(i+1);
-                    if(pt_lower.x > it->edge_rt.back().x - robot_size - 1){
-                        pt_lower.x = it->edge_lt.back().x - robot_size - 1;
+                    if(pt_lower.x > it->edge_rt.back().x - robot_size+1){
+                        pt_lower.x = it->edge_rt.back().x - robot_size+1;
                     }
                     pt_lower.y = it->edge_rt[pt_lower.x - path_pt.x].y-robot_size;
-                    while(pt_lower.y > it->edge_lt[pt_lower.x - path_pt.x].y){
-                        if(check_map_rect(pt_lower)){
-                            break;
+                    if(check_map_rect(pt_lower) == 0){
+                        settle_f = 0;
+                        j = 0;
+                        while(j < 9){
+                            pt_lower.x = pt_lower.x - j;
+                            pt_lower.y = it->edge_rt[pt_lower.x - path_pt.x].y-robot_size;
+                            while(pt_lower.y > it->edge_lt[pt_lower.x - path_pt.x].y){
+                                if(check_map_rect(pt_lower)){
+                                    settle_f = 1;
+                                    break;
+                                }
+                                --pt_lower.y;
+                            }
+                            if(settle_f){
+                                break;
+                            }
+                            ++j;
                         }
-                        --pt_lower.y;
                     }
-                    if(pt_upper.x != 0 && pt_upper.y != 0 && pt_lower.x != 0 && pt_lower.y != 0){
-                        cout << "pt_upper and pt_lower calculate success! " << endl;
-                    }else{
-                        cout << "pt_upper and pt_lower calculate failed! " << endl;
-                    }
+                    // process the finish edge ofrobot path
+                    
+
                     if(i%2 == 0){
                         robot.path.push_back(pt_lower);
-                        robot.path.push_back(pt_upper);     
+                        robot.path.push_back(pt_upper);
+                        it->path.push_back(pt_lower);
+                        it->path.push_back(pt_upper);     
                     }
                     if(i%2 == 1){
                         robot.path.push_back(pt_upper);
                         robot.path.push_back(pt_lower);
+                        it->path.push_back(pt_upper);
+                        it->path.push_back(pt_lower);
                     }
                 }       
             }

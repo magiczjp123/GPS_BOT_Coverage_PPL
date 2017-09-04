@@ -46,7 +46,7 @@ int main(){
     
     // cout << " pt is " << 8-0.5 << endl;
     
-    Mat logo = imread("company_logo.jpg", IMREAD_COLOR);
+    /* Mat logo = imread("company_logo.jpg", IMREAD_COLOR);
     // namedWindow("logo");
     // imshow("logo", logo);
     cout << " size of logo is " << logo.size() << endl;
@@ -72,9 +72,7 @@ int main(){
     for(i = 0; i < roi_resize.cols; ++i){
         for(j = 0; j < roi_resize.rows; ++j){
             intensity = roi_resize.at<Vec3b>(i,j);
-            /* if(roi_resize.at<Vec4b>(i,j) == Scalar(255,255,255,0)){
-                cout << " the pixel is " << i << " " << j << endl;
-            } */
+            
             logo_trans.at<Vec4b>(i,j) = Scalar((int)intensity.val[0],(int)intensity.val[1],(int)intensity.val[2],0);
             intensity1 = logo_trans.at<Vec4b>(i,j);
             cout << " the 4 channels are " << (int)intensity1.val[0] << " " << (int)intensity1.val[1] << " " << (int)intensity1.val[2] << " " << intensity1.val[3] << "+++++++" << endl;
@@ -86,8 +84,14 @@ int main(){
     imshow("company_logo_small", roi_resize);
     
     imshow("logo roi", roi);
-    waitKey(0);
-    
+    waitKey(0); */
+    double d = 2.333333;
+    i = 2;
+    cout << " the floor of d is " << floor(d) << endl;
+    if(i == floor(d)){
+        cout << " the i is  ==  floor(d) " << endl;
+        
+    }
 
 
 
