@@ -4,6 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <string>
+#include <cmath>
 #define Pi 3.1415926
 using std::string;
 using namespace cv;
@@ -59,16 +60,18 @@ void cell_pixel_init();
 void erase_tiny_cells(int min_width);
 void cell_img_mouse_callback(int event, int x, int y, int flags, void* param);
 void coverage_path_planning();
-int robot_move_up();
-int robot_move_right();
-int robot_move_down();
+void reorder_cell_cleaning();
+int cell_edge_check(cells &c1, cells &c2);
 int check_map_rect(Point pt);
 Point2f rotatePoint(Point p1, float angle);
+vector<int> ACO(vector<int> cells_center_x, vector<int> cells_center_y);
 //============================= Global var =======================
 Mat src;
 Mat masked_img;
 Mat cell_decompose_result;
 vector<cells> cells_v;
+vector<cells> cleaned_cells;
+vector<int> cells_order;
 int map_size_x;
 int map_size_y;
 int robot_size = 9;        // size of robot set to 10 x 10;
@@ -194,49 +197,54 @@ int main(int argc, char ** argv){
         }
         if(cells_v[i].path.size() == 0){
             ++empty_cell_num;
+        }else if(cells_v[i].path.size() > 1){
+            cleaned_cells.push_back(cells_v[i]);
         }
     }
     cout << "一共 " << cells_v.size() << " 个分区，已清扫 " << cells_v.size() - empty_cell_num << " 个分区" << endl;
-
+    cout << " the size of cleaned_cells is " << cleaned_cells.size() << endl;
+    // reorder_cell_cleaning();
+    /* cleaned_cells[4].branch = {0};
+    for(int i = 0; i < cleaned_cells.size(); ++i){
+        if(i != 0 && i != cleaned_cells[4].branch[0]){
+            if(cell_edge_check(cleaned_cells[4], cleaned_cells[i])){
+                cout << " checked cells[0] and cells[" << i << "]" << endl;
+                cout << " Area is " << cleaned_cells[i].area << endl;
+            }
+        }
+    }
+    cout << "cell[4].connected " << cleaned_cells[4].connected.size() << endl; */
+    cout << " the size of cells_order is " << cells_order.size() << endl;
+    
     Mat logo = imread("company_logo.jpg", IMREAD_COLOR);
     Rect r(logo.cols/2. - 236, logo.rows/2. - 204, 236*2,208*2);
     Mat roi_logo(logo,r);
     Mat roi_resize;
     resize(roi_logo,roi_resize,Size(9,9));
-    // Iterate through robot.path to print out robot path, skip begin of cells path
-    /* for(int i = 0; i < robot.path.size() -1 ; ++i){
-        // circle(draw_path,Point(robot.path[i].x+4,robot.path[i].y+4),4.5,Scalar(255,255,255),-1);
-        if(i+1 != begin_of_cells[index_cell] - 1){
-            // line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4),Scalar(255,255,255));
-            LineIterator it_line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4), 8);
-            LineIterator it_line2 = it_line;
-            ++it_line2;
-            LineIterator it_line3(draw_path, rotatePoint(Point(robot.path[i].x+4,robot.path[i].y+4),-angle), rotatePoint(Point(robot.path[i+1].x+4,robot.path[i+1].y+4),-angle), 8);
-            LineIterator it_line4 = it_line3;
-            ++it_line4;
-            LineIterator it_line5(draw_path, rotatePoint(Point(robot.path[i].x,robot.path[i].y),-angle), rotatePoint(Point(robot.path[i+1].x,robot.path[i+1].y),-angle), 8);
-            
-            // For line print, j < it_line.cont - 1;
-            // For circle print, j < it_line.cont
-            for(int j = 0; j < it_line.count; j++, ++it_line, ++it_line2, ++it_line3, ++it_line5){
-                
-                circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
-                circle(src_color,it_line3.pos(),4.5,Scalar(215,142,34),-1);
-                // line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
-                Mat src_color_with_logo = src_color.clone();
-                roi_resize.copyTo(src_color_with_logo.rowRange(it_line5.pos().y,it_line5.pos().y + 9).colRange(it_line5.pos().x,it_line5.pos().x+9));
-                // cout << " it_line5.pos() is " << it_line5.pos() << endl;
-                imshow("Path", draw_path);
-                imshow("Source image",src_color_with_logo);
-                if(waitKey(1) >=0) return 0;
-            }
-        }else if(i+1 == begin_of_cells[index_cell] - 1){
-            ++index_cell;
-        }
-        
-        // waitKey(100);
-    } */
+    
+    // find center of cells and write to file;
+    vector<int> cells_center_x;
+    vector<int> cells_center_y;
     for(auto it = cells_v.begin(); it != cells_v.end(); ++it){
+        if(it->path.size()>0){
+            cells_center_x.push_back((it->edge_lt[0].x+it->edge_lt.back().x+it->edge_rt[0].x+it->edge_rt.back().x)/4);
+            cells_center_y.push_back((it->edge_lt[0].y+it->edge_lt.back().y+it->edge_rt[0].y+it->edge_rt.back().y)/4);
+        }
+    }
+    int i = 0;
+    ofstream ofile;
+    ofile.open("cells_center_xy.txt");
+    for(i = 0; i < cells_center_x.size(); ++i){
+        ofile<<cells_center_x[i]<< endl;
+    }
+    for(i = 0; i < cells_center_y.size(); ++i){
+        ofile<<cells_center_y[i]<< endl;
+    }
+    ofile.close();
+
+    i = 0;
+    // Iterate through robot.path to print out robot path, skip begin of cells path
+    for(auto it = cells_v.begin(); it != cells_v.end(); ++it, ++i){
         if(it->path.size() > 1){
             for(auto it2 = it->path.begin(); it2 != it->path.end()-1; ++it2){
                 LineIterator it_line(draw_path, Point(it2->x+4,it2->y+4), Point((it2+1)->x+4,(it2+1)->y+4), 8);
@@ -258,11 +266,43 @@ int main(int argc, char ** argv){
                     // cout << " it_line5.pos() is " << it_line5.pos() << endl;
                     imshow("Path", draw_path_with_shape);
                     imshow("Source image",src_color_with_logo);
-                    if(waitKey(1) >=0) return 0;
+                    // if(waitKey(1) >=0) return 0;
                 }
             }
         }
+        circle(draw_path, Point(cells_center_x[i],cells_center_y[i]), 5, Scalar(0,0,0), -1);
     }
+    
+
+
+    /* for(int i = 0; i < cells_order.size(); ++i){
+        if(cleaned_cells[cells_order[i]].path.size() > 1){
+            for(auto it2 = cleaned_cells[cells_order[i]].path.begin(); it2 != cleaned_cells[cells_order[i]].path.end()-1; ++it2){
+                LineIterator it_line(draw_path, Point(it2->x+4,it2->y+4), Point((it2+1)->x+4,(it2+1)->y+4), 8);
+                LineIterator it_line2 = it_line;
+                ++it_line2;
+                LineIterator it_line3(draw_path, rotatePoint(Point(it2->x+4,it2->y+4),-angle), rotatePoint(Point((it2+1)->x+4,(it2+1)->y+4),-angle), 8);
+                LineIterator it_line4 = it_line3;
+                ++it_line4;
+                LineIterator it_line5(draw_path, rotatePoint(*it2,-angle), rotatePoint(*(it2+1),-angle), 8);
+                for(int j = 0; j < it_line.count; j++, ++it_line, ++it_line2, ++it_line3, ++it_line5){
+                    
+                    // circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
+                    circle(src_color,it_line3.pos(),4,Scalar(215,142,34),-1);
+                    line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
+                    Mat draw_path_with_shape = draw_path.clone();
+                    circle(draw_path_with_shape,it_line.pos(),4,Scalar(0,0,0),-1);
+                    Mat src_color_with_logo = src_color.clone();
+                    roi_resize.copyTo(src_color_with_logo.rowRange(it_line5.pos().y,it_line5.pos().y + 9).colRange(it_line5.pos().x,it_line5.pos().x+9));
+                    // cout << " it_line5.pos() is " << it_line5.pos() << endl;
+                    imshow("Path", draw_path_with_shape);
+                    imshow("Source image",src_color_with_logo);
+                    // if(waitKey(1) >=0) return 0;
+                }
+            }
+        }
+    } */
+
     
 
     
@@ -682,6 +722,85 @@ void coverage_path_planning(){
     
     }   
 }
+// the function to generate order for cells to be cleaned
+void reorder_cell_cleaning(){
+    // vector<int> v_i1;
+    int i =0;
+    int j = 0;
+    int current_cell = 0;
+    int tmp;
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it, ++i){
+        it->number = i;
+        // cout << " the " << it->number << " cells edge_lo is  " << it->edge_lo  << endl;
+    }
+    cleaned_cells[0].branch = {0};
+    current_cell = 0;
+    cells_order.push_back(current_cell);
+    for(i = 0; i < cleaned_cells.size(); ++i){
+        if(i != current_cell && i != cleaned_cells[current_cell].branch[0]){
+            cell_edge_check(cleaned_cells[current_cell], cleaned_cells[i]);
+        }
+    }
+    if(cleaned_cells[current_cell].connected.size() > 0){
+        
+        cleaned_cells[current_cell].cleaned = 1;
+        tmp = current_cell;
+        
+        
+        current_cell = cleaned_cells[current_cell].connected[0];
+        cleaned_cells[tmp].connected.erase(cleaned_cells[tmp].connected.begin());
+    }else if(cleaned_cells[current_cell].connected.size() == 0){
+        current_cell = cleaned_cells[current_cell].branch[0];
+    }
+    i = 0;
+    while(current_cell != 0){
+        if(cleaned_cells[current_cell].cleaned == 0){
+            for(i = 0; i < cleaned_cells.size(); ++i){
+                if(i != current_cell && i != cleaned_cells[current_cell].branch[0]){
+                    cell_edge_check(cleaned_cells[current_cell], cleaned_cells[i]);
+                }
+            }
+            cells_order.push_back(current_cell);
+        }
+        if(cleaned_cells[current_cell].connected.size() > 0){
+            
+            cleaned_cells[current_cell].cleaned = 1;
+            tmp = current_cell;
+            
+            current_cell = cleaned_cells[current_cell].connected[0];
+            cleaned_cells[tmp].connected.erase(cleaned_cells[tmp].connected.begin());
+            
+            
+        }else if(cleaned_cells[current_cell].connected.size() == 0){
+            current_cell = cleaned_cells[current_cell].branch[0];
+        }
+        cout << "+++++++++++++++++++++++" << endl;
+        cout << " current cell is " << current_cell  << " Area is " << cleaned_cells[current_cell].area << endl;
+        cout << " current cell.connected size is " << cleaned_cells[current_cell].connected.size() << endl;
+        ++i;
+    }
+    cout << " reorder calculation time is " << i << endl;
+    
+
+}
+// check if cells c2 is a connect cell of cells c1
+int cell_edge_check(cells &c1, cells &c2){
+    // connected on the left edge (edge_lo) of c1
+    if(c1.edge_lo[0].x - (c2.edge_up[0].x+1) < robot_size && c1.edge_lo[0].x - (c2.edge_up[0].x+1) >= 0){
+        if((c2.edge_up[0].y > c1.edge_lo[0].y && c2.edge_up[0].y < c1.edge_lo[1].y) || (c2.edge_up[1].y > c1.edge_lo[0].y && c2.edge_up[0].y < c1.edge_lo[1].y) || (c2.edge_up[1].y > c1.edge_lo[1].y && c2.edge_up[0].y < c1.edge_lo[0].y)){
+            c1.connected.push_back(c2.number);
+            c2.branch.push_back(c1.number);
+            return 1;
+        }
+    }else if(c2.edge_lo[0].x - (c1.edge_up[0].x+1) < robot_size && c2.edge_lo[0].x - (c1.edge_up[0].x+1) >= 0){
+        if((c1.edge_up[0].y > c2.edge_lo[0].y && c1.edge_up[0].y < c2.edge_lo[1].y) || (c1.edge_up[1].y > c2.edge_lo[0].y && c1.edge_up[0].y < c2.edge_lo[1].y) || (c1.edge_up[1].y > c2.edge_lo[1].y && c1.edge_up[0].y < c2.edge_lo[0].y)){
+            c1.connected.push_back(c2.number);
+            c2.branch.push_back(c1.number);
+            return 1;
+        }
+    }
+    return 0;
+}
 void erase_tiny_cells(int min_width){
     /* for(int i = 0; i < cells_v.size(); ++i){
         if(cells_v[i].edge_rt[0].y - cells_v[i].edge_lt[0].y -1 <= min_width || cells_v[i].edge_rt.back().y - cells_v[i].edge_lt.back().y -1 <= min_width){
@@ -740,4 +859,31 @@ Point2f rotatePoint(Point p1, float angle){
     result.y = r.at<double>(1,0)*p1.x + r.at<double>(1,1)*p1.y + r.at<double>(1,2);
     
     return result;
+}
+//================================= ACO algorithm for tsp ====================
+vector<int> ACO(vector<int> cells_center_x, vector<int> cells_center_y){
+    vector<int> cells_order;
+    NC_max = 50;
+    int m = cells_center_x.size();      // number of ants
+    int n = cells_center_x.size();      // number of cities
+    double alpha = 1.5;
+    double beta = 2;
+    double rho = 0.1;
+    double Q = pow(10,6);
+    vector<vector<int> > D;             // distance for cities
+
+    for(int i =0; i < n; ++i){
+        for(int j = 0; j < n; ++j){
+            if(i!=j){
+                D[i][j] = pow(pow(cells_center_x[i] - cells_center_y[j],2) + pow(,2) ,0.5);
+            }else{
+                f[i][j] = 0;
+            }
+        }
+    }
+
+
+
+
+    return cells_order;
 }

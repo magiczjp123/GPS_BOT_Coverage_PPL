@@ -11,6 +11,7 @@
         "valarray": "cpp",
         "string": "cpp",
         "*.tcc": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "iomanip": "cpp"
     }
 }

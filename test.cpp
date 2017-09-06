@@ -2,6 +2,7 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 #include <iostream>
+#include <cmath>
 #define Pi 3.1415926
 using namespace cv;
 using namespace std;
@@ -83,17 +84,45 @@ int main(){
     
     imshow("company_logo_small", roi_resize);
     
-    imshow("logo roi", roi);
+    imshow("logo roi"cout << " v_i is " << v_i[0] << endl;, roi);
     waitKey(0); */
     double d = 2.333333;
     i = 2;
-    cout << " the floor of d is " << floor(d) << endl;
+    // cout << " the floor of d is " << floor(d) << endl;
     if(i == floor(d)){
-        cout << " the i is  ==  floor(d) " << endl;
+        // cout << " the i is  ==  floor(d) " << endl;
         
     }
+    v_i = {1};
 
+    vector<vector<int> > TDVec[5][5];
+    // vector<int> v_i;
+    v_i = {2,3,4,5};
 
+    // TDVec.push_back(v_i);
+    v_i = {6,7,8,9};
+    // TDVec.push_back(v_i);
+    // v_i.pop_front();
+    int n = 10;
+    int m = n;
+    vector<double> zeroVec(n,0.0);
+    vector<vector<double> > D;             // distance for cities
+    for(int i = 0; i < n; ++i) D.push_back(zeroVec);
+    vector<vector<double> > eta;
+    for(int i = 0; i < n; ++i) eta.push_back(zeroVec);
+    cout << " TDVec element is " << D.size() << endl;
+
+    vector<vector<double> > Tabu;          // Ant path
+    for(int i=0;i<m;++i) Tabu.push_back(zeroVec);
+
+    Tabu[3][4] = 98;
+    for(int i = 0; i < n; ++i){
+        cout << " the " <<i<<" row is ";
+        for(int j = 0; j < n; ++j){
+            cout << Tabu[i][j] << " ";
+        }
+        cout << endl;
+    }
 
     return 0;
 }
@@ -969,3 +998,37 @@ int robot_move_down(){
 
     return 0;
 } */
+
+// old print path graph method
+/* for(int i = 0; i < robot.path.size() -1 ; ++i){
+        // circle(draw_path,Point(robot.path[i].x+4,robot.path[i].y+4),4.5,Scalar(255,255,255),-1);
+        if(i+1 != begin_of_cells[index_cell] - 1){
+            // line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4),Scalar(255,255,255));
+            LineIterator it_line(draw_path, Point(robot.path[i].x+4,robot.path[i].y+4), Point(robot.path[i+1].x+4,robot.path[i+1].y+4), 8);
+            LineIterator it_line2 = it_line;
+            ++it_line2;
+            LineIterator it_line3(draw_path, rotatePoint(Point(robot.path[i].x+4,robot.path[i].y+4),-angle), rotatePoint(Point(robot.path[i+1].x+4,robot.path[i+1].y+4),-angle), 8);
+            LineIterator it_line4 = it_line3;
+            ++it_line4;
+            LineIterator it_line5(draw_path, rotatePoint(Point(robot.path[i].x,robot.path[i].y),-angle), rotatePoint(Point(robot.path[i+1].x,robot.path[i+1].y),-angle), 8);
+            
+            // For line print, j < it_line.cont - 1;
+            // For circle print, j < it_line.cont
+            for(int j = 0; j < it_line.count; j++, ++it_line, ++it_line2, ++it_line3, ++it_line5){
+                
+                circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
+                circle(src_color,it_line3.pos(),4.5,Scalar(215,142,34),-1);
+                // line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
+                Mat src_color_with_logo = src_color.clone();
+                roi_resize.copyTo(src_color_with_logo.rowRange(it_line5.pos().y,it_line5.pos().y + 9).colRange(it_line5.pos().x,it_line5.pos().x+9));
+                // cout << " it_line5.pos() is " << it_line5.pos() << endl;
+                imshow("Path", draw_path);
+                imshow("Source image",src_color_with_logo);
+                if(waitKey(1) >=0) return 0;
+            }
+        }else if(i+1 == begin_of_cells[index_cell] - 1){
+            ++index_cell;
+        }
+        
+        // waitKey(100);
+    } */
