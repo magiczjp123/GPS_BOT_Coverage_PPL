@@ -3,6 +3,8 @@
 #include "opencv2/imgproc.hpp"
 #include <iostream>
 #include <cmath>
+#include <stdlib.h>
+#include <time.h>
 #define Pi 3.1415926
 using namespace cv;
 using namespace std;
@@ -35,7 +37,7 @@ int main(){
     int i = 0;
     int j = 0;
     int f = 0;
-    vector<int> v_i;
+    vector<double> v_i;
     /* while(i < 10){
 
         ++i;
@@ -93,12 +95,20 @@ int main(){
         // cout << " the i is  ==  floor(d) " << endl;
         
     }
-    v_i = {1};
+ 
 
     vector<vector<int> > TDVec[5][5];
     // vector<int> v_i;
-    v_i = {2,3,4,5};
-
+    v_i = {3.4,5.2,3.2,5.6,2.1,4.1,5.5};
+    cout << " the min value of v_i is " << min_element(v_i.begin(),v_i.end()) - v_i.begin() << endl;
+    vector<double> result(v_i.size(), 0.0);
+    
+    partial_sum(v_i.begin(),v_i.end(),result.begin());
+    cout << " the size of result is " << result.size() << endl;
+    for(i = 0; i < result.size(); ++i){
+        cout << "element is " << result[i] << endl;
+    }
+    
     // TDVec.push_back(v_i);
     v_i = {6,7,8,9};
     // TDVec.push_back(v_i);
@@ -110,20 +120,22 @@ int main(){
     for(int i = 0; i < n; ++i) D.push_back(zeroVec);
     vector<vector<double> > eta;
     for(int i = 0; i < n; ++i) eta.push_back(zeroVec);
-    cout << " TDVec element is " << D.size() << endl;
+
 
     vector<vector<double> > Tabu;          // Ant path
     for(int i=0;i<m;++i) Tabu.push_back(zeroVec);
 
-    Tabu[3][4] = 98;
+    /* Tabu[3][4] = 98;
     for(int i = 0; i < n; ++i){
         cout << " the " <<i<<" row is ";
         for(int j = 0; j < n; ++j){
             cout << Tabu[i][j] << " ";
         }
         cout << endl;
-    }
-
+    } */
+    srand(time(NULL));
+    cout << " rand() is " << (double)rand() / (RAND_MAX) << endl;
+    cout << pow(10,6) << endl;
     return 0;
 }
 

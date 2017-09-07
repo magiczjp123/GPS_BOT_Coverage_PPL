@@ -12,6 +12,8 @@
         "string": "cpp",
         "*.tcc": "cpp",
         "ostream": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "cmath": "cpp",
+        "complex": "cpp"
     }
 }
