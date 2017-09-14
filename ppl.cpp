@@ -3,6 +3,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <cmath>
 #define Pi 3.1415926
@@ -59,12 +60,16 @@ void erase_small_cells(int size_s);
 void cell_pixel_init();
 void erase_tiny_cells(int min_width);
 void cell_img_mouse_callback(int event, int x, int y, int flags, void* param);
+void cell_to_clean_img_mouse_callback(int event, int x, int y, int flags, void* param);
 void coverage_path_planning();
-void reorder_cell_cleaning();
+// void reorder_cell_cleaning();
+void cells_D_generation();
 int cell_edge_check(cells &c1, cells &c2);
 int check_map_rect(Point pt);
 Point2f rotatePoint(Point p1, float angle);
-vector<int> ACO(vector<int> cells_center_x, vector<int> cells_center_y);
+void erase_unreachable_cells();
+vector<int> ACO();
+
 //============================= Global var =======================
 Mat src;
 Mat masked_img;
@@ -80,7 +85,7 @@ robot robot;
 vector<int> begin_of_cells;
 Point2f img_center;
 float angle;
-
+vector<vector<int> > D_matrix;
 //================================================================
 int main(int argc, char ** argv){
     if (argc != 1){
@@ -203,29 +208,28 @@ int main(int argc, char ** argv){
     }
     cout << "一共 " << cells_v.size() << " 个分区，已清扫 " << cells_v.size() - empty_cell_num << " 个分区" << endl;
     cout << " the size of cleaned_cells is " << cleaned_cells.size() << endl;
-    // reorder_cell_cleaning();
-    /* cleaned_cells[4].branch = {0};
-    for(int i = 0; i < cleaned_cells.size(); ++i){
-        if(i != 0 && i != cleaned_cells[4].branch[0]){
-            if(cell_edge_check(cleaned_cells[4], cleaned_cells[i])){
-                cout << " checked cells[0] and cells[" << i << "]" << endl;
-                cout << " Area is " << cleaned_cells[i].area << endl;
-            }
-        }
-    }
-    cout << "cell[4].connected " << cleaned_cells[4].connected.size() << endl; */
-    cout << " the size of cells_order is " << cells_order.size() << endl;
     
+    // ========================== Shrink company logo to put in graph =======================
     Mat logo = imread("company_logo.jpg", IMREAD_COLOR);
     Rect r(logo.cols/2. - 236, logo.rows/2. - 204, 236*2,208*2);
     Mat roi_logo(logo,r);
     Mat roi_resize;
     resize(roi_logo,roi_resize,Size(9,9));
-    
+
+    // ========================== Erase unreachable cells ===================================
+    erase_unreachable_cells();
+
+    namedWindow("Cells to clean");
+    setMouseCallback("Cells to clean", cell_to_clean_img_mouse_callback, (void*)&cell_decompose_result);
+    // imshow("Cells before remove", map_before_remove);
+    imshow("Cells to clean",cell_decompose_result);
+    // ========================== Generate D_matrix for ACO algorithm =======================
+    cells_D_generation();
+
     // find center of cells and write to file;
     vector<int> cells_center_x;
     vector<int> cells_center_y;
-    for(auto it = cells_v.begin(); it != cells_v.end(); ++it){
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
         if(it->path.size()>0){
             cells_center_x.push_back((it->edge_lt[0].x+it->edge_lt.back().x+it->edge_rt[0].x+it->edge_rt.back().x)/4);
             cells_center_y.push_back((it->edge_lt[0].y+it->edge_lt.back().y+it->edge_rt[0].y+it->edge_rt.back().y)/4);
@@ -242,9 +246,46 @@ int main(int argc, char ** argv){
     }
     ofile.close();
 
-    i = 0;
+    // int i;
+    // ofstream ofile;
+    ofile.open("D_matrix.txt");
+    
+    for(int i = 0; i < D_matrix.size(); ++i){
+        for(int j = 0; j < D_matrix[i].size(); ++j){
+            ofile<<D_matrix[i][j]<<endl;
+        }
+    }
+    ofile.close();
+
+    
+    vector<int> aco_path;
+    // aco_path = ACO();
+
+
+    fstream myfile("aco_path.txt", ios_base::in);
+    int int_line;
+    if(myfile.is_open()){
+        cout << " txt opened" << endl;
+        while( myfile >> int_line){
+            aco_path.push_back(int_line);
+            cells_order.push_back(int_line);
+        }
+    }
+    myfile.close();
+
+    int full_length = 0;
+    cout << " the shortest length is " << endl;
+    for (i = 0; i < aco_path.size() - 1; ++i){
+        cout << " From node " << aco_path[i] << " to " << aco_path[i+1] << " is " << D_matrix[ aco_path[i] ][ aco_path[i+1] ] << endl;
+        full_length += D_matrix[ aco_path[i] ][ aco_path[i+1] ];
+    }
+    cout << " the full length is " << full_length << endl;
+    
+
+    cout << " the size of aco_path is " << aco_path.size() << endl;
+    
     // Iterate through robot.path to print out robot path, skip begin of cells path
-    for(auto it = cells_v.begin(); it != cells_v.end(); ++it, ++i){
+    /* for(auto it = cells_v.begin(); it != cells_v.end(); ++it, ++i){
         if(it->path.size() > 1){
             for(auto it2 = it->path.begin(); it2 != it->path.end()-1; ++it2){
                 LineIterator it_line(draw_path, Point(it2->x+4,it2->y+4), Point((it2+1)->x+4,(it2+1)->y+4), 8);
@@ -266,16 +307,45 @@ int main(int argc, char ** argv){
                     // cout << " it_line5.pos() is " << it_line5.pos() << endl;
                     imshow("Path", draw_path_with_shape);
                     imshow("Source image",src_color_with_logo);
-                    // if(waitKey(1) >=0) return 0;
+                    if(waitKey(1) >=0) return 0;
                 }
             }
         }
         circle(draw_path, Point(cells_center_x[i],cells_center_y[i]), 5, Scalar(0,0,0), -1);
-    }
+    } */
+    /* for( i = 0; i < cleaned_cells.size(); ++i){
+        if(cleaned_cells[i].path.size() > 1){
+            for( auto it2 = cleaned_cells[i].path.begin(); it2 != cleaned_cells[i].path.end(); ++it2){
+                LineIterator it_line(draw_path, Point(it2->x+4,it2->y+4), Point((it2+1)->x+4,(it2+1)->y+4), 8);
+                LineIterator it_line2 = it_line;
+                ++it_line2;
+                LineIterator it_line3(draw_path, rotatePoint(Point(it2->x+4,it2->y+4),-angle), rotatePoint(Point((it2+1)->x+4,(it2+1)->y+4),-angle), 8);
+                LineIterator it_line4 = it_line3;
+                ++it_line4;
+                LineIterator it_line5(draw_path, rotatePoint(*it2,-angle), rotatePoint(*(it2+1),-angle), 8);
+                for(int j = 0; j < it_line.count; j++, ++it_line, ++it_line2, ++it_line3, ++it_line5){
+                    
+                    // circle(draw_path,it_line.pos(),4.5,Scalar(255,255,255),-1);
+                    circle(src_color,it_line3.pos(),4,Scalar(215,142,34),-1);
+                    line(draw_path, it_line.pos(), it_line2.pos(), Scalar(255,255,255));
+                    Mat draw_path_with_shape = draw_path.clone();
+                    circle(draw_path_with_shape,it_line.pos(),4,Scalar(0,0,0),-1);
+                    Mat src_color_with_logo = src_color.clone();
+                    roi_resize.copyTo(src_color_with_logo.rowRange(it_line5.pos().y,it_line5.pos().y + 9).colRange(it_line5.pos().x,it_line5.pos().x+9));
+                    // cout << " it_line5.pos() is " << it_line5.pos() << endl;
+                    imshow("Path", draw_path_with_shape);
+                    imshow("Source image",src_color_with_logo);
+                    if(waitKey(1) >=0) return 0;
+                }
+            }
+        }
+        circle(draw_path, Point(cells_center_x[aco_path[i]],cells_center_y[aco_path[i]]), 5, Scalar(0,0,0), -1);
+    } */
     
 
+    cells_order = aco_path;
 
-    /* for(int i = 0; i < cells_order.size(); ++i){
+    for(int i = 0; i < cells_order.size(); ++i){
         if(cleaned_cells[cells_order[i]].path.size() > 1){
             for(auto it2 = cleaned_cells[cells_order[i]].path.begin(); it2 != cleaned_cells[cells_order[i]].path.end()-1; ++it2){
                 LineIterator it_line(draw_path, Point(it2->x+4,it2->y+4), Point((it2+1)->x+4,(it2+1)->y+4), 8);
@@ -297,29 +367,16 @@ int main(int argc, char ** argv){
                     // cout << " it_line5.pos() is " << it_line5.pos() << endl;
                     imshow("Path", draw_path_with_shape);
                     imshow("Source image",src_color_with_logo);
-                    // if(waitKey(1) >=0) return 0;
+                    if(waitKey(1) >=0) return 0;
                 }
             }
         }
-    } */
-
-    
-
-    
-    // imwrite("map_cells.png", cell_decompose_result);
-    
-    /* robot.robot_pose_init(Point(105,197));
-    cout << " the size of robot path is " << robot.path.size() << endl;
-    int go_f = 1;
-    while(go_f == 1){
-        if(robot_move_down() == 0){
-            go_f = 0;
-        }
     }
-    // while(robot_move_down() != 0){ cout << "+++++++++++++" << endl;};
-    // cout << " robor move up result " << robot_move_down() << endl;
-    cout << " the size of robot path is " << robot.path.size() << endl;
-    cout << " the current robot pose is " << robot.pose << endl; */
+
+    
+
+    
+    
     
     // imshow("Source image", src);
     waitKey(0);
@@ -571,6 +628,23 @@ void cell_img_mouse_callback(int event, int x, int y, int flags, void* param){
         displayOverlay("Cells", msg+msg1);
     }
 }
+void cell_to_clean_img_mouse_callback(int event, int x, int y, int flags, void* param){
+    Mat& img = *(Mat*) param; 
+    if(event == EVENT_MOUSEMOVE){
+        string msg = "Current Cell: ";
+        string msg1;
+        int i;
+        int j;
+        for(i = 0; i < cleaned_cells.size(); ++i){
+            for(j = 0; j < cleaned_cells[i].edge_lt.size(); ++j){
+                if(x == cleaned_cells[i].edge_lt[j].x && y < cleaned_cells[i].edge_rt[j].y && y > cleaned_cells[i].edge_lt[j].y){
+                    msg1 = to_string(i) + "   " + "Area is " + to_string(cleaned_cells[i].area);
+                }
+            }
+        }
+        displayOverlay("Cells to clean", msg+msg1);
+    }
+}
 void coverage_path_planning(){
     Point path_pt;
     int i;
@@ -723,7 +797,7 @@ void coverage_path_planning(){
     }   
 }
 // the function to generate order for cells to be cleaned
-void reorder_cell_cleaning(){
+/* void reorder_cell_cleaning(){
     // vector<int> v_i1;
     int i =0;
     int j = 0;
@@ -782,25 +856,9 @@ void reorder_cell_cleaning(){
     cout << " reorder calculation time is " << i << endl;
     
 
-}
+} */
 // check if cells c2 is a connect cell of cells c1
-int cell_edge_check(cells &c1, cells &c2){
-    // connected on the left edge (edge_lo) of c1
-    if(c1.edge_lo[0].x - (c2.edge_up[0].x+1) < robot_size && c1.edge_lo[0].x - (c2.edge_up[0].x+1) >= 0){
-        if((c2.edge_up[0].y > c1.edge_lo[0].y && c2.edge_up[0].y < c1.edge_lo[1].y) || (c2.edge_up[1].y > c1.edge_lo[0].y && c2.edge_up[0].y < c1.edge_lo[1].y) || (c2.edge_up[1].y > c1.edge_lo[1].y && c2.edge_up[0].y < c1.edge_lo[0].y)){
-            c1.connected.push_back(c2.number);
-            c2.branch.push_back(c1.number);
-            return 1;
-        }
-    }else if(c2.edge_lo[0].x - (c1.edge_up[0].x+1) < robot_size && c2.edge_lo[0].x - (c1.edge_up[0].x+1) >= 0){
-        if((c1.edge_up[0].y > c2.edge_lo[0].y && c1.edge_up[0].y < c2.edge_lo[1].y) || (c1.edge_up[1].y > c2.edge_lo[0].y && c1.edge_up[0].y < c2.edge_lo[1].y) || (c1.edge_up[1].y > c2.edge_lo[1].y && c1.edge_up[0].y < c2.edge_lo[0].y)){
-            c1.connected.push_back(c2.number);
-            c2.branch.push_back(c1.number);
-            return 1;
-        }
-    }
-    return 0;
-}
+
 void erase_tiny_cells(int min_width){
     /* for(int i = 0; i < cells_v.size(); ++i){
         if(cells_v[i].edge_rt[0].y - cells_v[i].edge_lt[0].y -1 <= min_width || cells_v[i].edge_rt.back().y - cells_v[i].edge_lt.back().y -1 <= min_width){
@@ -861,29 +919,443 @@ Point2f rotatePoint(Point p1, float angle){
     return result;
 }
 //================================= ACO algorithm for tsp ====================
-vector<int> ACO(vector<int> cells_center_x, vector<int> cells_center_y){
-    vector<int> cells_order;
-    NC_max = 50;
-    int m = cells_center_x.size();      // number of ants
-    int n = cells_center_x.size();      // number of cities
+vector<int> ACO(){
+    
+    /* vector<int> cells_center_x;
+    vector<int> cells_center_y; */
+    int NC_max = 50;
+    int m = D_matrix.size();      // number of ants
+    int n = m;      // number of cities
     double alpha = 1.5;
     double beta = 2;
     double rho = 0.1;
     double Q = pow(10,6);
-    vector<vector<int> > D;             // distance for cities
-
-    for(int i =0; i < n; ++i){
-        for(int j = 0; j < n; ++j){
+    vector<double> zeroVec(n,0.0);
+    vector<double> onesVec(n,1.0);
+    vector<int> zeroVec_i(n,1);
+    int i,j,k;
+    
+    vector<vector<double> > D;             // distance for cities
+    // for(i = 0; i < n; ++i) D.push_back(zeroVec);
+    vector<vector<double> > eta;
+    // for(i = 0; i < n; ++i) eta.push_back(zeroVec);
+    //====================== initialize distance matrix and its inverse
+    /* for(i =0; i < n; ++i){
+        for(j = 0; j < n; ++j){
             if(i!=j){
-                D[i][j] = pow(pow(cells_center_x[i] - cells_center_y[j],2) + pow(,2) ,0.5);
-            }else{
-                f[i][j] = 0;
+                D[i][j] = pow(pow(cells_center_x[i] - cells_center_x[j],2) + pow(cells_center_y[i] - cells_center_y[j],2) ,0.5);
+                eta[i][j] = 1./D[i][j];
             }
+        }
+    } */
+    for(i = 0; i < D_matrix.size(); ++i){
+        vector<double> tmp_D;
+        vector<double> tmp_eta;
+        for(j = 0; j < D_matrix[i].size(); ++j){
+            tmp_D.push_back((double) D_matrix[i][j]);
+            tmp_eta.push_back((double) 1./D_matrix[i][j]);
+        }
+        D.push_back(tmp_D);
+        eta.push_back(tmp_eta);
+    }
+    cout << " the D matrix is " << endl;
+    for(auto it = D.begin(); it != D.end(); ++it){
+        cout << endl << " the " << it-D.begin() << " th row is " << endl;
+        for(auto it2 = (*it).begin(); it2 != (*it).end(); ++it2){
+            cout << *it2 << setw(4);
+        }
+        
+    }
+    //===================== init Pheromone Matrix ===============
+    vector<vector<double> > Tau;        // Pheromone
+    for(i=0;i<n;++i) Tau.push_back(onesVec);
+    
+    // for(i=0;i<m;++i) Tabu.push_back(zeroVec);
+    int NC = 1;
+    vector<vector<int> > R_best;
+    // for(i=0;i<NC_max;++i) R_best.push_back(zeroVec_i);
+    vector<double> L_best;          // Shortest ant mileage for each iteration
+    vector<double> L_ave;           // Average of ant mileage for each iteration
+
+    while( NC < NC_max ){
+        vector<vector<int> > Tabu;          // Ant path
+        // Place ant randomly on cities
+        vector<int> rand_pos;
+
+        for(i=0;i<m;++i) rand_pos.push_back(i);
+        random_shuffle(rand_pos.begin(),rand_pos.end());
+        Tabu.push_back(rand_pos);
+        /* //=================== Display 2D vector ========================
+        for(i = 0; i < n; ++i){
+            cout << " the " <<i<<" row is ";
+            for(int j = 0; j < n; ++j){
+                cout << Tabu[i][j]<<setw(2) << " ";
+            }
+            cout << endl;
+        }
+        //============================================================== */
+        // each ant move towards next city based on its probability
+        // cout << " the size of Tabu is " << Tabu.size() << endl;
+        // int pt_c = 0;
+        // if( NC == 1){
+        for(i = 0; i < n-1; ++i){
+        // for(i = 0; i < 1; ++i){
+            vector<int> current_city;
+            //=================== Display 2D vector ========================
+            /* cout << " i = " << i << " Tabu[] = " << endl;
+            for(int I = 0; I < Tabu.size(); ++I){
+                cout << " the " <<I<<" row is ";
+                for(int J = 0; J < n; ++J){
+                    cout << Tabu[I][J]<<setw(2) << " ";
+                }
+                cout << endl;
+            } */
+            //==============================================================
+            for(j = 0; j < m; ++j){
+                vector<int> to_visit;
+                for(k = 0; k < n; ++k){
+                    int found = 0;
+                    for(auto it = Tabu.begin(); it != Tabu.end(); ++it){
+                        if(k == (*it)[j]){
+                            found = 1;
+                        }
+                    }
+                    if(found == 0){
+                        to_visit.push_back(k);
+                    }
+                }
+                // cout << " n number " << i << endl;
+                /* cout << " the " << j << " th ant's to_visit ";
+                for(k = 0; k < to_visit.size(); ++k){
+                    cout << to_visit[k] << " ";
+                }
+                cout << endl; */
+                vector<double> P(to_visit.size(), 0.0);
+                // Reverse to visit city 
+                // reverse(to_visit.begin(), to_visit.end());
+                // for each city to be visited, calculate the associated probability from fomular P(Cij)
+                double P_sum = 0.0;
+                for(k = 0; k < to_visit.size(); ++k){
+                    P[k] = pow(Tau[Tabu.back()[j]][to_visit[k]],alpha) * pow(eta[Tabu.back()[j]][to_visit[k]],beta);
+                    P_sum += P[k];
+                }
+                for(k = 0; k < P.size(); ++k){
+                    P[k] = P[k]/P_sum;
+                }
+                /* cout << " the " << j << " normalised P ";
+                for(k = 0; k < P.size(); ++k){
+                    cout << P[k] << " ";
+                }
+                cout << endl; */
+                // reorder P[k] ascending order
+                /* vector<v_i> v_i1;
+                v_i v_i_temp;
+                for(auto it = P.begin(); it != P.end(); ++it){
+                    v_i_temp.num = *it;
+                    v_i_temp.idx = it - P.begin();
+                    v_i1.push_back(v_i_temp);
+                } */
+                /* auto idx = sort_indexes(P);
+                for(k = 0; k < idx.size(); ++k){
+                    to_visit[k] = idx[k];
+                    
+                }
+                
+                sort(P.begin(), P.end());
+                cout << " size of to_visit and P is " << to_visit.size() << " " << P.size() << endl;
+                // Cumulate probability */
+                vector<double> P_cumsum(P.size(),0.0);
+                partial_sum(P.begin(),P.end(),P_cumsum.begin());
+                /* cout << " the " << j << " P_cumsum ";
+                for(k = 0; k < P_cumsum.size(); ++k){
+                    cout << P_cumsum[k] << " ";
+                }
+                cout << endl; */
+
+                for(k = 0; k < P_cumsum.size(); ++k){
+                    if(P_cumsum[k] >= ((double)rand() / (RAND_MAX))){
+                        // cout << " the k has P > rand " << k << endl;
+                        current_city.push_back(to_visit[k]);
+                        // cout << " the to visit[k] is " << to_visit[k] << endl;
+                        break;
+                    }
+                }  
+            }
+            Tabu.push_back(current_city);
+        }
+        //=================== Display 2D vector ========================
+        /* for(i = 0; i < n; ++i){
+            cout << " the " <<i<<" row is ";
+            for(int j = 0; j < n; ++j){
+                cout << Tabu[i][j]<<setw(2) << " ";
+            }
+            cout << endl;
+        } */
+        //==============================================================
+        // keep record of best route for current iterate
+        vector<double> ant_mileage;
+        for(i = 0; i < m; ++i){
+            double current_ant = 0.0;
+            for(j = 0; j < n-1; ++j){
+                current_ant += D[ Tabu[j][i] ][ Tabu[j+1][i] ];
+            }
+            ant_mileage.push_back(current_ant);
+        }
+        cout << " the ant_mileage is ";
+        for(i = 0; i < ant_mileage.size(); ++i){
+            cout << ant_mileage[i] << " ";
+        }
+        cout << endl;
+
+        // Store shoreted path to L_best
+        L_best.push_back(*min_element(ant_mileage.begin(), ant_mileage.end()));
+        int best_index = min_element(ant_mileage.begin(), ant_mileage.end()) - ant_mileage.begin();
+        vector<int> current_best_r;
+        for(i = 0; i < n; ++i){
+            current_best_r.push_back(Tabu[i][best_index]);
+        }
+        R_best.push_back(current_best_r);
+        /* cout << " the L_best is " << L_best.back() << endl;
+        cout << " the current_best_r is ";
+        for(i = 0; i < current_best_r.size(); ++i){
+            cout << current_best_r[i] << " ";
+        }
+        cout << endl; */
+        L_ave.push_back(accumulate(ant_mileage.begin(), ant_mileage.end(), 0.0) / ant_mileage.size());
+
+        //============================ Update Pheromone ======================================
+        vector<vector<double> > Delta_Tau;
+        for(i=0;i<n;++i) Delta_Tau.push_back(zeroVec);
+        
+        /* for(i = 0; i < n; ++i){
+            cout << " the " <<i<<" row is ";
+            for(int j = 0; j < n; ++j){
+                cout << Delta_Tau[i][j]<<setw(2) << " ";
+            }
+            cout << endl;
+        } */
+        for(i = 0; i < m; ++i){
+            for(j = 0; j < n-1 ; ++j){
+                Delta_Tau[ Tabu[j][i] ][ Tabu[j+1][i] ] += Q/ant_mileage[i];
+            }
+            Delta_Tau[ Tabu[n-1][i] ][ Tabu[0][i] ] += Q/ant_mileage[i];
+        }
+        /* for(i = 0; i < n; ++i){
+            cout << " the " <<i<<" row is ";
+            for(int j = 0; j < n; ++j){
+                cout << Delta_Tau[i][j]<<setw(2) << " ";
+            }
+            cout << endl;
+        } */
+
+        for(i = 0; i < n; ++i){
+            for(j = 0; j < n; ++j){
+                Tau[i][j] *= (1.0-rho);
+                Tau[i][j] += Delta_Tau[i][j];
+            }
+        }
+        ++NC;
+
+    }
+
+    /* cout << " R_best" << endl;
+    for(i = 0; i < R_best.size(); ++i){
+        cout << " the " <<i<<" row is ";
+        for(int j = 0; j < n; ++j){
+            cout << R_best[i][j]<<setw(2) << " ";
+        }
+        cout << endl;
+    }
+    cout << "***********************************"<< endl; */
+
+    cout << "L_best" << endl;
+    for(i = 0; i < L_best.size(); ++i){
+        cout << " the " << i << " row is " << L_best[i] << endl;
+
+    }
+    int best_i = min_element(L_best.begin(), L_best.end()) - L_best.begin();
+
+    cout << " the shortest travel distance is " << L_best[best_i] << endl;
+    cout << " the shortest path is " << endl;
+    for(i = 0; i < R_best[best_i].size(); ++i){
+        cout << " cell NO. " << R_best[best_i][i] << "  " << endl;
+        // cout << " ( " << cleaned_cells[R_best[best_i][i]].number <<  " ) " << endl;
+    }
+    /* Mat path_plot(120, 120, CV_8UC3, Scalar(255,255,255));
+    
+    for(i = 0; i < R_best[best_i].size()-1; ++i){
+        line(path_plot, Point(cells_center_x[R_best[best_i][i]], cells_center_y[R_best[best_i][i]]), Point(cells_center_x[R_best[best_i][i+1]], cells_center_y[R_best[best_i][i+1]]), Scalar(0,0,0));
+        circle(path_plot, Point(cells_center_x[R_best[best_i][i]], cells_center_y[R_best[best_i][i]]),4,Scalar(0,0,0),-1);
+    }
+    line(path_plot, Point(cells_center_x[R_best[best_i][i]], cells_center_y[R_best[best_i][i]]), Point(cells_center_x[R_best[best_i][0]], cells_center_y[R_best[best_i][0]]), Scalar(0,0,0));
+    circle(path_plot, Point(cells_center_x[R_best[best_i][i]], cells_center_y[R_best[best_i][i]]),4,Scalar(0,0,0),-1);
+
+
+    namedWindow("Plot", WINDOW_FREERATIO);
+    imshow("Plot", path_plot);
+    
+
+    waitKey(0); */
+
+    return R_best[best_i];
+}
+
+int cell_edge_check(cells &c1, cells &c2){
+    // connected on the left edge (edge_lo) of c1
+    /* if(c1.edge_lo[0].x - (c2.edge_up[0].x+1) < robot_size && c1.edge_lo[0].x - (c2.edge_up[0].x+1) >= 0){
+        if((c2.edge_up[0].y > c1.edge_lo[0].y && c2.edge_up[0].y < c1.edge_lo[1].y) || (c2.edge_up[1].y > c1.edge_lo[0].y && c2.edge_up[0].y < c1.edge_lo[1].y) || (c2.edge_up[1].y > c1.edge_lo[1].y && c2.edge_up[0].y < c1.edge_lo[0].y)){
+            c1.connected.push_back(c2.number);
+            c2.branch.push_back(c1.number);
+            return 1;
+        }
+    }else if(c2.edge_lo[0].x - (c1.edge_up[0].x+1) < robot_size && c2.edge_lo[0].x - (c1.edge_up[0].x+1) >= 0){
+        if((c1.edge_up[0].y > c2.edge_lo[0].y && c1.edge_up[0].y < c2.edge_lo[1].y) || (c1.edge_up[1].y > c2.edge_lo[0].y && c1.edge_up[0].y < c2.edge_lo[1].y) || (c1.edge_up[1].y > c2.edge_lo[1].y && c1.edge_up[0].y < c2.edge_lo[0].y)){
+            c1.connected.push_back(c2.number);
+            c2.branch.push_back(c1.number);
+            return 1;
+        }
+    } */
+
+    // version with no branch information 
+    if(c1.edge_lo[0].x - (c2.edge_up[0].x+1) < robot_size && c1.edge_lo[0].x - (c2.edge_up[0].x+1) >= 0){
+        if((c2.edge_up[0].y > c1.edge_lo[0].y && c2.edge_up[0].y < c1.edge_lo[1].y) || (c2.edge_up[1].y > c1.edge_lo[0].y && c2.edge_up[0].y < c1.edge_lo[1].y) || (c2.edge_up[1].y > c1.edge_lo[1].y && c2.edge_up[0].y < c1.edge_lo[0].y)){
+            c1.connected.push_back(c2.number);
+            c2.connected.push_back(c1.number);
+            return 1;
+        }
+    }else if(c2.edge_lo[0].x - (c1.edge_up[0].x+1) < robot_size && c2.edge_lo[0].x - (c1.edge_up[0].x+1) >= 0){
+        if((c1.edge_up[0].y > c2.edge_lo[0].y && c1.edge_up[0].y < c2.edge_lo[1].y) || (c1.edge_up[1].y > c2.edge_lo[0].y && c1.edge_up[0].y < c2.edge_lo[1].y) || (c1.edge_up[1].y > c2.edge_lo[1].y && c1.edge_up[0].y < c2.edge_lo[0].y)){
+            c1.connected.push_back(c2.number);
+            c2.connected.push_back(c1.number);
+            return 1;
         }
     }
 
 
 
+    return 0;
+}
 
-    return cells_order;
+// ======================================== generate cells distance =================
+void cells_D_generation(){
+    // vector<int> v_i1;
+    int i = 0;
+    int j = 0;
+    int k = 0;
+    int current_cell = 0;
+    int tmp;
+    /* for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it, ++i){
+        it->number = i;
+        // cout << " the " << it->number << " cells edge_lo is  " << it->edge_lo  << endl;
+        
+    } */
+    /* for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
+        // cout << " the " << it->number << " cells edge_lo is  " << it->edge_lo  << endl;
+        for(auto it2 = it; it2 != cleaned_cells.end(); ++it2){
+            if(it2 != it){
+                cell_edge_check(*it, *it2);
+            }
+        }
+    }
+    // loop through every posible path,
+    // untill all path 's last connected is null
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
+        if(it->connected.size() == 0){
+            cleaned_cells.erase(it);
+        }
+    }
+    cout << "****** the size of cleaned_cells is " << cleaned_cells.size() << endl;
+    i = 0;
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it, ++i){
+        it->connected.clear();
+        it->number = it - cleaned_cells.begin();
+        // cout << " the " << it->number << " cells edge_lo is  " << it->edge_lo  << endl;
+        
+    } */
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
+        // cout << " the " << it->number << " cells edge_lo is  " << it->edge_lo  << endl;
+
+        for(auto it2 = it; it2 != cleaned_cells.end(); ++it2){
+            if(it2 != it){
+                cell_edge_check(*it, *it2);
+            }
+        }
+    }
+    // ======================= Display all connected information of cells =========================
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
+        cout << " the curent cell " << it - cleaned_cells.begin() << " connected is:  "<< endl;
+        if(it->connected.size()>0){
+            for(i = 0; i < it->connected.size(); ++i){                
+                cout << it->connected[i] << setw(4);                
+            }
+        }
+        cout << endl;
+    }
+    cout << " the number of connected cells is " << cleaned_cells.size() << endl;
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
+        vector<int> D_row(cleaned_cells.size(),0);
+        vector<int> openL;
+        vector<int> closeL;
+        int level = 1;
+        openL = it->connected;
+        // while(closeL.size() <= cleaned_cells.size()){
+        while(openL.size() != 0){
+            vector<int> tmp;
+            for(i = 0; i < openL.size(); ++i){
+                D_row[openL[i]] = level;
+                closeL.push_back(openL[i]);
+                
+            }
+            // cout << " the size of closeL is " << closeL.size() << endl;
+            for(i = 0; i < openL.size(); ++i){
+                for(j = 0; j < cleaned_cells[openL[i]].connected.size(); ++j){
+                    
+                    if(find(closeL.begin(), closeL.end(), cleaned_cells[openL[i]].connected[j]) == closeL.end()){
+                        tmp.push_back(cleaned_cells[openL[i]].connected[j]);
+                    }
+                }
+            }
+            openL = tmp;
+              
+            ++level;
+        }
+        cout << " the current D_cell is " << it-cleaned_cells.begin() << endl;
+        D_row[it-cleaned_cells.begin()] = INT_MAX;
+        D_matrix.push_back(D_row);
+        // cout << " the size of D_row is " << D_row.size() << endl;
+    }
+    // ================================== Print out the D_matrix ====================================
+    cout << " the D_maxtrix is " << endl;
+    for(i = 0; i < D_matrix.size(); ++i){
+        cout << " the " << i << " th row is " << endl;
+        for(j = 0; j < D_matrix[i].size(); ++j){
+            cout << D_matrix[i][j] << setw(4);
+        }
+        cout << endl;
+    }
+}
+void erase_unreachable_cells(){
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
+        // cout << " the " << it->number << " cells edge_lo is  " << it->edge_lo  << endl;
+        for(auto it2 = it; it2 != cleaned_cells.end(); ++it2){
+            if(it2 != it){
+                cell_edge_check(*it, *it2);
+            }
+        }
+    }
+    // loop through every posible path,
+    // untill all path 's last connected is null
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
+        if(it->connected.size() == 0){
+            cleaned_cells.erase(it);
+        }
+    }
+    cout << "****** the size of cleaned_cells is " << cleaned_cells.size() << endl;
+    
+    for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
+        it->connected.clear();
+        it->number = it - cleaned_cells.begin();
+        // cout << " the " << it->number << " cells edge_lo is  " << it->edge_lo  << endl;
+        
+    }
 }

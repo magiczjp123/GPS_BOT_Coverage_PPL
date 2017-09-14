@@ -2,24 +2,112 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <cmath>
 #define Pi 3.1415926
 using std::string;
 using namespace cv;
 using namespace std;
+class v_i{
+public:
+    double num;
+    int idx;
+};
+bool comparator( const v_i& l, const v_i& r) { return l.num < r.num;}
 
+// ========================== out put index of sort =====================
+template <typename T>
+vector<size_t> sort_indexes(const vector<T> &v) {
 
+  // initialize original index locations
+  vector<size_t> idx(v.size());
+  iota(idx.begin(), idx.end(), 0);
+
+  // sort indexes based on comparing values in v
+  sort(idx.begin(), idx.end(),
+       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+
+  return idx;
+}
 
 
 int main(){
 
     vector<int> cells_order;
-    vector<int> cells_center_x = {41,37,54,25,7,2,68,71,54,83};
-    vector<int> cells_center_y = {94,84,67,62,64,99,58,44,62,69};
+    // vector<int> cells_center_x = {41,37,54,25,7,2,68,71,54,83,64,18,22,83,91,25,24,58,71,74,87,18,13,82,62,58,45,41,44,4};
+    // vector<int> cells_center_y = {94,84,67,62,64,99,58,44,62,69,60,54,60,46,38,38,42,69,71,78,76,40,40,7,32,35,21,26,35,50};
+    vector<int> cells_center_x;
+    vector<int> cells_center_y;
+    int n = 118;
+    vector<vector<int> > D_matrix;
+    fstream myfile("D_matrix.txt", ios_base::in);
+    int int_line;
+    if(myfile.is_open()){
+        cout << " txt opened" << endl;
+        /* for(int i = 0; i < 120; ++i){
+            // getline(myfile, line);
+            myfile >> int_line;
+            cells_center_x.push_back(int_line);
+        }
+        for(int i = 0; i < 120; ++i){
+            // getline(myfile, line);
+            myfile >> int_line;
+            cells_center_y.push_back(int_line);
+        } */
+        vector<int> tmp;
+        for(int i = 0; i < n; ++i){
+            vector<int> tmp;
+            for(int j = 0; j < n; ++j){
+                myfile >> int_line;
+                tmp.push_back(int_line);
+            }
+            D_matrix.push_back(tmp);
+        }
+    }
+    myfile.close();
+    cout << " the size of D is " << D_matrix.size() << endl;
+
+    /* cout << " the D matrix is " << endl;
+    for(auto it = D_matrix.begin(); it != D_matrix.end(); ++it){
+        cout << endl << " the " << it-D_matrix.begin() << " th row is " << endl;
+        for(auto it2 = (*it).begin(); it2 != (*it).end(); ++it2){
+            cout << *it2 << setw(4);
+        }
+        
+    } */
+    fstream myfile1("cells_center_xy.txt", ios_base::in);
+    
+    if(myfile1.is_open()){
+        cout << " cells_center txt opened" << endl;
+        for(int i = 0; i < 118; ++i){
+            // getline(myfile1, line);
+            myfile1 >> int_line;
+            // cout << " int_line is " << int_line << endl;
+            cells_center_x.push_back(int_line);
+        }
+        for(int i = 0; i < 118; ++i){
+            // getline(myfile1, line);
+            myfile1 >> int_line;
+            cells_center_y.push_back(int_line);
+        }
+        
+    }
+    myfile1.close();
+    
+    /* cout << " cells_center_x is " << endl;
+    for(int i = 0; i < cells_center_x.size(); ++i){
+        cout << cells_center_x[i] << setw(6);
+    }
+    cout << endl;
+    cout << " cells_center_y is " << endl;
+    for(int i = 0; i < cells_center_y.size(); ++i){
+        cout << cells_center_y[i] << setw(6);
+    }
+    cout << endl; */
     int NC_max = 50;
-    int m = cells_center_x.size();      // number of ants
-    int n = cells_center_x.size();      // number of cities
+    int m = D_matrix.size();      // number of ants
+    // int n = m;      // number of cities
     double alpha = 1.5;
     double beta = 2;
     double rho = 0.1;
@@ -28,19 +116,31 @@ int main(){
     vector<double> onesVec(n,1.0);
     vector<int> zeroVec_i(n,1);
     int i,j,k;
+    char bar[102];
+    bar[0] = 0;
     
     vector<vector<double> > D;             // distance for cities
-    for(i = 0; i < n; ++i) D.push_back(zeroVec);
+    // for(i = 0; i < n; ++i) D.push_back(zeroVec);
     vector<vector<double> > eta;
-    for(i = 0; i < n; ++i) eta.push_back(zeroVec);
+    // for(i = 0; i < n; ++i) eta.push_back(zeroVec);
     //====================== initialize distance matrix and its inverse
-    for(i =0; i < n; ++i){
+    /* for(i =0; i < n; ++i){
         for(j = 0; j < n; ++j){
             if(i!=j){
                 D[i][j] = pow(pow(cells_center_x[i] - cells_center_x[j],2) + pow(cells_center_y[i] - cells_center_y[j],2) ,0.5);
                 eta[i][j] = 1./D[i][j];
             }
         }
+    } */
+    for(i = 0; i < D_matrix.size(); ++i){
+        vector<double> tmp_D;
+        vector<double> tmp_eta;
+        for(j = 0; j < D_matrix[i].size(); ++j){
+            tmp_D.push_back((double) D_matrix[i][j]);
+            tmp_eta.push_back((double) 1./(D_matrix[i][j]));
+        }
+        D.push_back(tmp_D);
+        eta.push_back(tmp_eta);
     }
     //===================== init Pheromone Matrix ===============
     vector<vector<double> > Tau;        // Pheromone
@@ -123,7 +223,23 @@ int main(){
                     cout << P[k] << " ";
                 }
                 cout << endl; */
-                // Cumulate probability
+                // reorder P[k] ascending order
+                /* vector<v_i> v_i1;
+                v_i v_i_temp;
+                for(auto it = P.begin(); it != P.end(); ++it){
+                    v_i_temp.num = *it;
+                    v_i_temp.idx = it - P.begin();
+                    v_i1.push_back(v_i_temp);
+                } */
+                /* auto idx = sort_indexes(P);
+                for(k = 0; k < idx.size(); ++k){
+                    to_visit[k] = idx[k];
+                    
+                }
+                
+                sort(P.begin(), P.end());
+                cout << " size of to_visit and P is " << to_visit.size() << " " << P.size() << endl;
+                // Cumulate probability */
                 vector<double> P_cumsum(P.size(),0.0);
                 partial_sum(P.begin(),P.end(),P_cumsum.begin());
                 /* cout << " the " << j << " P_cumsum ";
@@ -161,11 +277,11 @@ int main(){
             }
             ant_mileage.push_back(current_ant);
         }
-        cout << " the ant_mileage is ";
+        /* cout << " the ant_mileage is ";
         for(i = 0; i < ant_mileage.size(); ++i){
             cout << ant_mileage[i] << " ";
         }
-        cout << endl;
+        cout << endl; */
 
         // Store shoreted path to L_best
         L_best.push_back(*min_element(ant_mileage.begin(), ant_mileage.end()));
@@ -200,13 +316,13 @@ int main(){
             }
             Delta_Tau[ Tabu[n-1][i] ][ Tabu[0][i] ] += Q/ant_mileage[i];
         }
-        for(i = 0; i < n; ++i){
+        /* for(i = 0; i < n; ++i){
             cout << " the " <<i<<" row is ";
             for(int j = 0; j < n; ++j){
                 cout << Delta_Tau[i][j]<<setw(2) << " ";
             }
             cout << endl;
-        }
+        } */
 
         for(i = 0; i < n; ++i){
             for(j = 0; j < n; ++j){
@@ -214,11 +330,28 @@ int main(){
                 Tau[i][j] += Delta_Tau[i][j];
             }
         }
+        
+        
         ++NC;
-
+        
+        
+        // ============================= progress bar========================
+        // cout << " the current iteration is " << NC << endl;
+        double progress = (double)NC/NC_max;
+        int barWidth = 70;
+        cout << "[";
+        int pos = barWidth * progress;
+        for (int i = 0; i < barWidth; ++i) {
+            if (i < pos) std::cout << "=";
+            else if (i == pos) std::cout << ">";
+            else std::cout << " ";
+        }
+        std::cout << "] " << int(progress * 100.0) << " %\r";
+        std::cout.flush();
     }
+    cout << endl;
 
-    cout << " R_best" << endl;
+    /* cout << " R_best" << endl;
     for(i = 0; i < R_best.size(); ++i){
         cout << " the " <<i<<" row is ";
         for(int j = 0; j < n; ++j){
@@ -226,19 +359,55 @@ int main(){
         }
         cout << endl;
     }
-    cout << "***********************************"<< endl;
+    cout << "***********************************"<< endl; */
 
     cout << "L_best" << endl;
     for(i = 0; i < L_best.size(); ++i){
         cout << " the " << i << " row is " << L_best[i] << endl;
 
     }
+    int best_i = min_element(L_best.begin(), L_best.end()) - L_best.begin();
 
-    Mat path_plot(120, 120, CV_8UC3);
-    for(i = 0; i < R_best[46].size()-1; ++i){
-        line(path_plot, Point(cells_center_x[R_best.back()[i]], cells_center_y[R_best.back()[i]]), Point(cells_center_x[R_best.back()[i+1]], cells_center_y[R_best.back()[i+1]]), Scalar(255,255,255));
+    
 
+    ofstream ofile;
+    ofile.open("aco_path.txt");
+    for(i = 0; i < R_best[best_i].size(); ++i){
+        ofile<< R_best[best_i][i] << endl;
     }
+    ofile.close();
+
+    cout << " the shortest travel distance is " << L_best[best_i] << endl;
+    cout << " the shortest path is " << endl;
+    for(i = 0; i < R_best[best_i].size(); ++i){
+        cout << " ( " << R_best[best_i][i] << " ) " << endl;
+        // cout << " ( " << cells_center_x[R_best[best_i][i]] << " , " << cells_center_y[R_best[best_i][i]] << " ) " << endl;
+    }
+
+    cout << " cells_center_x is " << endl;
+    for(i = 0; i << cells_center_x.size(); ++i){
+        cout << cells_center_x[i] << setw(6);
+    }
+    cout << endl;
+    cout << " cells_center_y is " << endl;
+    for(i = 0; i << cells_center_y.size(); ++i){
+        cout << cells_center_y[i] << setw(6);
+    }
+    cout << endl;
+    // Mat path_plot(480, 736, CV_8UC3, Scalar(255,255,255));
+    Mat path_plot = imread("map_cells.png");
+    RNG rng(12345);
+    for(i = 0; i < R_best[best_i].size()-1; ++i){
+        Scalar color = Scalar(rng.uniform(0,220), rng.uniform(0, 220), rng.uniform(0, 220));
+        line(path_plot, Point(cells_center_x[R_best[best_i][i]], cells_center_y[R_best[best_i][i]]), Point(cells_center_x[R_best[best_i][i+1]], cells_center_y[R_best[best_i][i+1]]), color);
+        circle(path_plot, Point(cells_center_x[R_best[best_i][i+1]], cells_center_y[R_best[best_i][i+1]]),4,color,-1);
+    }
+    Scalar color = Scalar(rng.uniform(0,220), rng.uniform(0, 220), rng.uniform(0, 220));
+    line(path_plot, Point(cells_center_x[R_best[best_i][i]], cells_center_y[R_best[best_i][i]]), Point(cells_center_x[R_best[best_i][0]], cells_center_y[R_best[best_i][0]]), color);
+    circle(path_plot, Point(cells_center_x[R_best[best_i][0]], cells_center_y[R_best[best_i][0]]),4,color,-1);
+
+
+    namedWindow("Plot", WINDOW_FREERATIO);
     imshow("Plot", path_plot);
     
 

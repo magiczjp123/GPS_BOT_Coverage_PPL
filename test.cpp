@@ -2,13 +2,30 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 #include <iostream>
+#include <fstream>
 #include <cmath>
 #include <stdlib.h>
 #include <time.h>
+#include <stdio.h>
+#include <unistd.h>
 #define Pi 3.1415926
 using namespace cv;
 using namespace std;
 
+
+template <typename T>
+vector<size_t> sort_indexes(const vector<T> &v) {
+
+  // initialize original index locations
+  vector<size_t> idx(v.size());
+  iota(idx.begin(), idx.end(), 0);
+
+  // sort indexes based on comparing values in v
+  sort(idx.begin(), idx.end(),
+       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+
+  return idx;
+}
 
 int main(){
     /* cells c1;  
@@ -100,6 +117,13 @@ int main(){
     vector<vector<int> > TDVec[5][5];
     // vector<int> v_i;
     v_i = {3.4,5.2,3.2,5.6,2.1,4.1,5.5};
+    auto v_i_i = sort_indexes(v_i);
+    for(i = 0; i < v_i_i.size();++i){
+        cout << v_i_i[i] << endl;
+        cout << " v_i is " << v_i[i] << endl;
+    }
+    int q = v_i_i[3];
+    cout << " q is " << q << endl;
     cout << " the min value of v_i is " << min_element(v_i.begin(),v_i.end()) - v_i.begin() << endl;
     vector<double> result(v_i.size(), 0.0);
     
@@ -109,6 +133,36 @@ int main(){
         cout << "element is " << result[i] << endl;
     }
     
+    vector<int> cells_center_x;
+    vector<int> cells_center_y;
+    fstream myfile("cells_center_xy.txt", ios_base::in);
+    // myfile.open("cells_center_xy.txt");
+    int line;
+    if(myfile.is_open()){
+        cout << " txt opened" << endl;
+        for(int i = 0; i < 120; ++i){
+            // getline(myfile, line);
+            myfile >> line;
+            cells_center_x.push_back(line);
+        }
+        for(int i = 0; i < 120; ++i){
+            // getline(myfile, line);
+            myfile >> line;
+            cells_center_y.push_back(line);
+        }
+    }
+    myfile.close();
+    cout << " the cells center x is " << cells_center_x.size() << endl;
+    for(int i = 0; i < cells_center_x.size(); ++i){
+        cout << cells_center_x[i] << endl;
+    }
+    cout << " the cells center y is " << cells_center_y.size() << endl;
+    for(int i = 0; i < cells_center_y.size(); ++i){
+        cout << cells_center_y[i] << endl;
+    }
+
+
+
     // TDVec.push_back(v_i);
     v_i = {6,7,8,9};
     // TDVec.push_back(v_i);
@@ -136,6 +190,41 @@ int main(){
     srand(time(NULL));
     cout << " rand() is " << (double)rand() / (RAND_MAX) << endl;
     cout << pow(10,6) << endl;
+
+    i = 0;
+    char bar[102];
+    bar[0] = 0;
+    /* while(i <= 100)
+    {  
+        printf("[%-100s][%d%%]\r", bar, i);  
+        fflush(stdout);  
+        bar[i] = '#';  
+        i++;  
+        bar[i] = 0;  
+        usleep(100000);  
+    }  
+    printf("\n");  */
+
+    cout << " the infinity is " << INT_MAX << endl;
+    float progress = 0.0;
+    while (progress < 1.0) {
+        int barWidth = 70;
+    
+        std::cout << "[";
+        int pos = barWidth * progress;
+        for (int i = 0; i < barWidth; ++i) {
+            if (i < pos) std::cout << "=";
+            else if (i == pos) std::cout << ">";
+            else std::cout << " ";
+        }
+        std::cout << "] " << int(progress * 100.0) << " %\r";
+        std::cout.flush();
+        usleep(100000);
+        progress += 0.16; // for demonstration only
+    }
+    std::cout << std::endl;
+    
+
     return 0;
 }
 
@@ -1043,4 +1132,66 @@ int robot_move_down(){
         }
         
         // waitKey(100);
+    } */
+
+    //===============================================
+/*     void reorder_cell_cleaning(){
+        // vector<int> v_i1;
+        int i =0;
+        int j = 0;
+        int current_cell = 0;
+        int tmp;
+        for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it, ++i){
+            it->number = i;
+            // cout << " the " << it->number << " cells edge_lo is  " << it->edge_lo  << endl;
+        }
+        cleaned_cells[0].branch = {0};
+        current_cell = 0;
+        cells_order.push_back(current_cell);
+        for(i = 0; i < cleaned_cells.size(); ++i){
+            if(i != current_cell && i != cleaned_cells[current_cell].branch[0]){
+                cell_edge_check(cleaned_cells[current_cell], cleaned_cells[i]);
+            }
+        }
+        if(cleaned_cells[current_cell].connected.size() > 0){
+            
+            cleaned_cells[current_cell].cleaned = 1;
+            tmp = current_cell;
+            
+            
+            current_cell = cleaned_cells[current_cell].connected[0];
+            cleaned_cells[tmp].connected.erase(cleaned_cells[tmp].connected.begin());
+        }else if(cleaned_cells[current_cell].connected.size() == 0){
+            current_cell = cleaned_cells[current_cell].branch[0];
+        }
+        i = 0;
+        while(current_cell != 0){
+            if(cleaned_cells[current_cell].cleaned == 0){
+                for(i = 0; i < cleaned_cells.size(); ++i){
+                    if(i != current_cell && i != cleaned_cells[current_cell].branch[0]){
+                        cell_edge_check(cleaned_cells[current_cell], cleaned_cells[i]);
+                    }
+                }
+                cells_order.push_back(current_cell);
+            }
+            if(cleaned_cells[current_cell].connected.size() > 0){
+                
+                cleaned_cells[current_cell].cleaned = 1;
+                tmp = current_cell;
+                
+                current_cell = cleaned_cells[current_cell].connected[0];
+                cleaned_cells[tmp].connected.erase(cleaned_cells[tmp].connected.begin());
+                
+                
+            }else if(cleaned_cells[current_cell].connected.size() == 0){
+                current_cell = cleaned_cells[current_cell].branch[0];
+            }
+            cout << "+++++++++++++++++++++++" << endl;
+            cout << " current cell is " << current_cell  << " Area is " << cleaned_cells[current_cell].area << endl;
+            cout << " current cell.connected size is " << cleaned_cells[current_cell].connected.size() << endl;
+            ++i;
+        }
+        cout << " reorder calculation time is " << i << endl;
+        
+    
     } */
