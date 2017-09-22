@@ -8,6 +8,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <ctime>
 #define Pi 3.1415926
 using namespace cv;
 using namespace std;
@@ -26,7 +27,15 @@ vector<size_t> sort_indexes(const vector<T> &v) {
 
   return idx;
 }
-
+int zhishu(int n);
+int modzhishu(int n, const vector<int>& zhishubiao){
+    for(auto it = zhishubiao.begin(); it != zhishubiao.end(); ++it){
+        if( n % (*it) == 0 ){
+            return 0;
+        }
+    }
+    return 1;
+}
 int main(){
     /* cells c1;  
     vector<cells> cells_v;
@@ -191,6 +200,53 @@ int main(){
     cout << " rand() is " << (double)rand() / (RAND_MAX) << endl;
     cout << pow(10,6) << endl;
 
+    vector<int> v_i1;
+    v_i1 = {8,8,4,7,2,5,6,3,7,9,9,9,9,10};
+    vector<int> v_i_sort = v_i1;
+    vector<int> v_i_value;
+    vector<int> rank_a = v_i1;
+    sort(v_i_sort.begin(),v_i_sort.end());
+
+    cout << " v_i_sort is " << endl;
+    for(auto it = v_i_sort.begin(); it!= v_i_sort.end(); ++it){
+        cout << " " << *it << " ";
+    }
+    cout << endl;
+    int count = 1;
+    v_i_value.push_back(count);
+    for (int i=1;i<v_i_sort.size();++i){
+        if(v_i_sort[i] > v_i_sort[i-1]){
+            ++count;
+            v_i_value.push_back(count);
+        }else{
+            v_i_value.push_back(count);
+        }
+    }
+    cout << " v_i_value is " << endl;
+    for(auto it = v_i_value.begin(); it!= v_i_value.end(); ++it){
+        cout << " " << *it << " ";
+    }
+    cout << endl;
+    cout << " the size of v_i1 is " << v_i1.size() << endl;
+    cout << " v_i1 is " << endl;
+    for(auto it = v_i1.begin(); it!= v_i1.end(); ++it){
+        cout << " " << *it << " ";
+    }
+    cout << endl;
+    
+    for(int i = 0; i < v_i1.size(); ++i){
+        
+        rank_a[i] = v_i_value[ find(v_i_sort.begin(),v_i_sort.end(), v_i1[i]) - v_i_sort.begin() ];
+        // cout << " the position is " << find(v_i_sort.begin(),v_i_sort.end(), v_i1[i]) - v_i_sort.begin() << endl;
+    }
+       
+    for(auto it = rank_a.begin(); it!= rank_a.end(); ++it){
+        cout << " " << *it << " ";
+    }
+    cout << endl;
+    
+    // cout << " result of find " << find(v_i_sort.begin(),v_i_sort.end(), 7) - v_i_sort.begin() << endl;
+    
     i = 0;
     char bar[102];
     bar[0] = 0;
@@ -204,6 +260,46 @@ int main(){
         usleep(100000);  
     }  
     printf("\n");  */
+
+    ofstream ofile;
+    ofile.open("zhishu.txt");
+
+    // ==========
+    n = 522048;
+    j = 0;
+    int size = INT_MAX/8;
+    count = 0;
+    vector<int> zhishubiao(size, 0);
+    vector<int> prime(size,0);
+    cout << " size of is " << sizeof(int) << endl;
+    int start_s = clock();
+    for( i = 2; i <= size; ++i){
+        // if( modzhishu(i, zhishubiao)){
+            if(!zhishubiao[i]){
+                prime[++count] = i;
+                    // cout << " the i is " << i << endl;
+                    for(j = i; j < zhishubiao.size(); j+=i){
+                        zhishubiao[j] = 1;
+                    }
+                    // ofile<< i << endl;
+                   
+                    if( count == 522048 ){
+                        cout << " the 522048 th prime is " << i << endl;
+                        break;
+                    }
+                
+            }
+        // }
+        // cout << " the size of zhishubiao is " << zhishubiao.size() << endl;
+    }
+    int stop_s = clock();
+    
+    cout << " time: " << (stop_s - start_s)/double(CLOCKS_PER_SEC)*1000 << endl;
+    ofile.close();
+
+
+
+    //=============
 
     cout << " the infinity is " << INT_MAX << endl;
     float progress = 0.0;
@@ -228,7 +324,16 @@ int main(){
     return 0;
 }
 
+int zhishu(int n){
+    for(int i=2; i<n; ++i){
+        if(n % i == 0){
+            return 0;
+        }
+    
+    }
 
+    return 1;
+}
 
 
 

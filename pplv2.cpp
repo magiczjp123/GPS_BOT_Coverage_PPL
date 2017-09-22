@@ -26,7 +26,7 @@ public:
     vector<int> connected;
     vector<int> branch;
     string status;
-    int area = 0;
+    int area;
     int cleaned = 0;
     Scalar color;
 };
@@ -57,28 +57,19 @@ int match_intersect(const cells &c1, vector<Point> intersect);
 Mat print_cells(Mat &map, vector<cells> &cells_v);
 int get_cell_area(const cells &c1);
 void erase_small_cells(int size_s);
-void cells_fill_black(const cells &c1, Mat &map);
 void cell_pixel_init();
 void erase_tiny_cells(int min_width);
 void cell_img_mouse_callback(int event, int x, int y, int flags, void* param);
-// Mouse callback function to draw box on image
 void cell_to_clean_img_mouse_callback(int event, int x, int y, int flags, void* param);
-Rect box;       // Box that is drawn on image
-bool drawing_box = false;
-void draw_box( Mat& img, Rect box){
-    rectangle(img,box.tl(),box.br(),Scalar(0,0,0));
-}
-// ==================================================
-void coverage_path_planning(vector<cells> &cells_v, Mat &map);
+void coverage_path_planning();
 // void reorder_cell_cleaning();
 void cells_D_generation();
 int cell_edge_check(cells &c1, cells &c2);
-int check_map_rect(Point pt, const Mat &map);
+int check_map_rect(Point pt);
 Point2f rotatePoint(Point p1, float angle);
 void erase_unreachable_cells();
 vector<int> ACO();
 void rect_clean(Rect clean_area);         // Perform rectangle area clean aroung the robot
-void track_boundary(const Mat &map, vector<cells> &cells_v, vector<int>);
 // vector<cells> rect_cell_decompose(Mat& rect_map)
 // vector<Point> rect_yslice_gen(int x_current,int start, int map_size_y, )
 //============================= Global var =======================
@@ -93,7 +84,7 @@ int map_size_y;
 int robot_size = 9;        // size of robot set to 10 x 10;
 int min_entry_width = 8;
 robot robot;
-// vector<int> begin_of_cells;
+vector<int> begin_of_cells;
 Point2f img_center;
 float angle;
 vector<vector<int> > D_matrix;
@@ -190,15 +181,13 @@ int main(int argc, char ** argv){
    // cout << " count for small cells is " << count << endl;
     namedWindow("image contours after");
     imshow("image contours after", masked_img);
-    Mat masked_img_backup = masked_img.clone();
     // imwrite("map_masked.png", masked_img);
     namedWindow("Cells");
     setMouseCallback("Cells", cell_img_mouse_callback, (void*)&cell_decompose_result);
     // imshow("Cells before remove", map_before_remove);
     imshow("Cells",cell_decompose_result);
 
-    coverage_path_planning(cells_v, masked_img);
-    
+    coverage_path_planning();
     Mat draw_path = cell_decompose_result.clone();
     namedWindow("Path");
     int index_cell = 1;
@@ -232,24 +221,11 @@ int main(int argc, char ** argv){
     // ========================== Erase unreachable cells ===================================
     erase_unreachable_cells();
 
-    namedWindow("image contours after 1");
-    imshow("image contours after 1", masked_img);
-    
-    // ========================== cells to clean mouse call back ============
     namedWindow("Cells to clean");
     setMouseCallback("Cells to clean", cell_to_clean_img_mouse_callback, (void*)&cell_decompose_result);
-
-    
-    // rectangle(cell_decompose_result,Rect(105,197,robot_size*10, robot_size*10),Scalar());
+    // imshow("Cells before remove", map_before_remove);
+    rectangle(cell_decompose_result,Rect(105,197,robot_size*10, robot_size*10),Scalar());
     imshow("Cells to clean",cell_decompose_result);
-    box = Rect(-1,-1,0,0);
-    Mat tmp = cell_decompose_result.clone();
-    while(1){
-        cell_decompose_result.copyTo(tmp);
-        if(drawing_box) draw_box( tmp, box );
-        imshow("Cells to clean",tmp);
-        if(waitKey(15) == 27 ) break;
-    }
     // ========================== Generate D_matrix for ACO algorithm =======================
     cells_D_generation();
 
@@ -300,7 +276,7 @@ int main(int argc, char ** argv){
     }
     myfile.close();
 
-    /* int full_length = 0;
+    int full_length = 0;
     cout << " the shortest length is " << endl;
     for (i = 0; i < aco_path.size() - 1; ++i){
         cout << " From node " << aco_path[i] << " to " << aco_path[i+1] << " is " << D_matrix[ aco_path[i] ][ aco_path[i+1] ] << endl;
@@ -309,7 +285,7 @@ int main(int argc, char ** argv){
     cout << " the full length is " << full_length << endl;
     
 
-    cout << " the size of aco_path is " << aco_path.size() << endl; */
+    cout << " the size of aco_path is " << aco_path.size() << endl;
     
     rect_clean(Rect(105,197,robot_size*10, robot_size*10));
     
@@ -664,50 +640,22 @@ void cell_img_mouse_callback(int event, int x, int y, int flags, void* param){
 }
 void cell_to_clean_img_mouse_callback(int event, int x, int y, int flags, void* param){
     Mat& img = *(Mat*) param; 
-    switch( event ){
-        case EVENT_MOUSEMOVE: {
-            string msg = "Current Cell: ";
-            string msg1;
-            int i;
-            int j;
-            for(i = 0; i < cleaned_cells.size(); ++i){
-                for(j = 0; j < cleaned_cells[i].edge_lt.size(); ++j){
-                    if(x == cleaned_cells[i].edge_lt[j].x && y < cleaned_cells[i].edge_rt[j].y && y > cleaned_cells[i].edge_lt[j].y){
-                        // Produce the overlay mesage
-                        msg1 = to_string(i) + "   " + "Area is " + to_string(cleaned_cells[i].area);
-                    }
+    if(event == EVENT_MOUSEMOVE){
+        string msg = "Current Cell: ";
+        string msg1;
+        int i;
+        int j;
+        for(i = 0; i < cleaned_cells.size(); ++i){
+            for(j = 0; j < cleaned_cells[i].edge_lt.size(); ++j){
+                if(x == cleaned_cells[i].edge_lt[j].x && y < cleaned_cells[i].edge_rt[j].y && y > cleaned_cells[i].edge_lt[j].y){
+                    msg1 = to_string(i) + "   " + "Area is " + to_string(cleaned_cells[i].area);
                 }
             }
-            displayOverlay("Cells to clean", msg+msg1);
-            if(drawing_box){
-                box.width = x-box.x;
-                box.height = y-box.y;
-            }
         }
-        break;
-
-        case EVENT_LBUTTONDOWN: {
-            drawing_box = true;
-            box = Rect( x, y, 0, 0);
-        }
-        break;
-
-        case EVENT_LBUTTONUP: {
-            drawing_box = false;
-            if( box.width < 0 ) {
-                box.x += box.width;
-                box.width *= -1;
-            }
-            if( box.height < 0 ) {
-                box.y += box.height;
-                box.height *= -1;
-            }
-            draw_box( img, box);
-        }
-        break;
+        displayOverlay("Cells to clean", msg+msg1);
     }
 }
-void coverage_path_planning(vector<cells> &cells_v, Mat &map){
+void coverage_path_planning(){
     Point path_pt;
     int i;
     int j;
@@ -720,27 +668,24 @@ void coverage_path_planning(vector<cells> &cells_v, Mat &map){
         }
         ++path_pt.y;
         while(path_pt.y < it->edge_rt[0].y){
-            if(check_map_rect(path_pt, map)){
+            if(check_map_rect(path_pt)){
                 it->path.push_back(path_pt);
-                // robot.robot_pose_init(path_pt);
+                robot.robot_pose_init(path_pt);
                 start_f = 1;
                 break;
             }
             ++path_pt.y;
         }
-        if(start_f != 1){
-            cells_fill_black(*it, map);
-        }
         // if cell width is < robot_size * 0.4 then it will not be cleaned
         if(start_f == 1 && it->edge_lt.size() < robot_size*0.4){
-            // robot.path.pop_back();
+            robot.path.pop_back();
             it->path.pop_back();
             start_f = 0;
         }
         cout <<" the current cell is " << it-cells_v.begin() << " Area is " << it->area << endl;
         cout << " start_f is " << start_f << endl;
         if(start_f == 1){
-            // begin_of_cells.push_back(robot.path.end() - robot.path.begin());
+            begin_of_cells.push_back(robot.path.end() - robot.path.begin());
             // cout << " the begin of t current cell is " << begin_of_cells.back() << endl;
             float vertical_traj_num = (float)it->edge_lt.size()/robot_size;
             
@@ -762,7 +707,7 @@ void coverage_path_planning(vector<cells> &cells_v, Mat &map){
             // offset corner to robot size and check to fit robot size on map
             pt_left_most.y = pt_left_most.y - robot_size;
             while(pt_left_most.y > it->edge_lt[pt_left_most.x - path_pt.x].y){
-                if(check_map_rect(pt_left_most, map)){
+                if(check_map_rect(pt_left_most)){
                     break;
                 }
                 --pt_left_most.y;
@@ -796,14 +741,14 @@ void coverage_path_planning(vector<cells> &cells_v, Mat &map){
                     }
                     // upper point y value takes edge_lt at upper point's x
                     pt_upper.y = it->edge_lt[pt_upper.x - path_pt.x].y+1;
-                    if(check_map_rect(pt_upper, map) == 0){
+                    if(check_map_rect(pt_upper) == 0){
                         settle_f =0;
                         j = 0;
                         while(j < 9){
                             pt_upper.x = pt_upper.x - j;
                             pt_upper.y = it->edge_lt[pt_upper.x - path_pt.x].y+1;
                             while(pt_upper.y < it->edge_rt[pt_upper.x - path_pt.x].y){
-                                if(check_map_rect(pt_upper, map)){
+                                if(check_map_rect(pt_upper)){
                                     settle_f = 1;
                                     break;
                                 }
@@ -821,14 +766,14 @@ void coverage_path_planning(vector<cells> &cells_v, Mat &map){
                         pt_lower.x = it->edge_rt.back().x - robot_size+1;
                     }
                     pt_lower.y = it->edge_rt[pt_lower.x - path_pt.x].y-robot_size;
-                    if(check_map_rect(pt_lower, map) == 0){
+                    if(check_map_rect(pt_lower) == 0){
                         settle_f = 0;
                         j = 0;
                         while(j < 9){
                             pt_lower.x = pt_lower.x - j;
                             pt_lower.y = it->edge_rt[pt_lower.x - path_pt.x].y-robot_size;
                             while(pt_lower.y > it->edge_lt[pt_lower.x - path_pt.x].y){
-                                if(check_map_rect(pt_lower, map)){
+                                if(check_map_rect(pt_lower)){
                                     settle_f = 1;
                                     break;
                                 }
@@ -949,22 +894,23 @@ void erase_tiny_cells(int min_width){
         if(((float)(count/it->edge_lt.size()) > (float)0.2) && (count > 0)){
             
             // cout << " cell removed " << endl;
-            cells_fill_black(*it, masked_img);
             cells_v.erase(it);
         }
     }
     // cout << " the number of tiny cells is " << count << endl;
 }
-int check_map_rect(Point pt, const Mat &map){
+int check_map_rect(Point pt){
     int i;
     int j;
     for(i = 0; i < robot_size; ++i){
         for(j = 0; j < robot_size; ++j){
-            if((int)map.at<uchar>(pt.y+i, pt.x+j) != 255){
+            if((int)masked_img.at<uchar>(pt.y+i, pt.x+j) != 255){
                 return 0;
             }
         }
     }
+
+
     return 1;
 }
 Point2f rotatePoint(Point p1, float angle){
@@ -1382,7 +1328,6 @@ void cells_D_generation(){
             openL = tmp;
               
             ++level;
-            level += level;
         }
         cout << " the current D_cell is " << it-cleaned_cells.begin() << endl;
         D_row[it-cleaned_cells.begin()] = INT_MAX;
@@ -1412,7 +1357,6 @@ void erase_unreachable_cells(){
     // untill all path 's last connected is null
     for(auto it = cleaned_cells.begin(); it != cleaned_cells.end(); ++it){
         if(it->connected.size() == 0){
-            cells_fill_black(*it, masked_img);
             cleaned_cells.erase(it);
         }
     }
@@ -1448,51 +1392,11 @@ void rect_clean(Rect clean_area){
     rect_cells_v = cell_decompose(rect_map);
     cout << " the size of rect cells V is " << rect_cells_v.size() << endl;
     Mat rect_result = print_cells(rect_map, rect_cells_v);
-    coverage_path_planning(rect_cells_v, rect_map);
-    namedWindow("rect result", WINDOW_FREERATIO);
-    for(auto it = rect_cells_v.begin(); it != rect_cells_v.end(); ++it){
-        cout << " the current cells " << it-rect_cells_v.begin() << endl;
-        for(int i = 0; i < it->path.size() -1; ++i){
-            cout << " path poing --> " << it->path[i] << endl;
-            line(rect_result, Point(it->path[i].x+4,it->path[i].y+4), Point(it->path[i+1].x+4,it->path[i+1].y+4),Scalar(255,255,255));
-            imshow("rect result", rect_result);
-
-            if(waitKey(5) >=0) return;
-        }
-    }
-
-    // namedWindow("rect result", WINDOW_FREERATIO);
+    // vector<Point> yslice;
+    // vector<Point> intersect;
+    // for(int i = 0;)
+    imshow("rect result", rect_result);
 
 
     // return result;
-}
-void track_boundary(const Mat &map, vector<cells> &cells_v, vector<int> track_order){
-    Point track_point = Point(1,1);
-    vector<Point> track;
-    int bottom_reached = 0;     // Using reached flag for loop breaker
-    int right_reached = 0;
-    int top_reached = 0;
-    int origin_reached = 0;
-
-    while(bottom_reached != 1){
-        int flag_s = 0;
-        while(track_point.x < map.cols-robot_size-1){
-            ++track_point.x;
-            if(check_map_rect(track_point, map)){
-                track.push_back(track_point);
-                flag_s = 1;
-                break;
-            }
-            if(flag_s != 1){
-                ++track_point.y;
-            }
-        }
-    }
-
-}
-void cells_fill_black(const cells &c1, Mat &map){
-    for(int j = 0; j < c1.edge_lt.size(); ++j){
-        Rect region(c1.edge_lt[j].x,c1.edge_lt[j].y+1,1,c1.edge_rt[j].y-c1.edge_lt[j].y-1);
-        map(region) = 0;
-    }
 }

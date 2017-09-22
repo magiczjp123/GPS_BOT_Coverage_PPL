@@ -16,6 +16,7 @@
         "cmath": "cpp",
         "complex": "cpp",
         "istream": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "typeinfo": "cpp"
     }
 }

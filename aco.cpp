@@ -17,19 +17,7 @@ public:
 bool comparator( const v_i& l, const v_i& r) { return l.num < r.num;}
 
 // ========================== out put index of sort =====================
-template <typename T>
-vector<size_t> sort_indexes(const vector<T> &v) {
 
-  // initialize original index locations
-  vector<size_t> idx(v.size());
-  iota(idx.begin(), idx.end(), 0);
-
-  // sort indexes based on comparing values in v
-  sort(idx.begin(), idx.end(),
-       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
-
-  return idx;
-}
 
 
 int main(){
@@ -44,7 +32,7 @@ int main(){
     fstream myfile("D_matrix.txt", ios_base::in);
     int int_line;
     if(myfile.is_open()){
-        cout << " txt opened" << endl;
+        cout << " D_matrix txt opened" << endl;
         /* for(int i = 0; i < 120; ++i){
             // getline(myfile, line);
             myfile >> int_line;
@@ -80,13 +68,13 @@ int main(){
     
     if(myfile1.is_open()){
         cout << " cells_center txt opened" << endl;
-        for(int i = 0; i < 118; ++i){
+        for(int i = 0; i < n; ++i){
             // getline(myfile1, line);
             myfile1 >> int_line;
             // cout << " int_line is " << int_line << endl;
             cells_center_x.push_back(int_line);
         }
-        for(int i = 0; i < 118; ++i){
+        for(int i = 0; i < n; ++i){
             // getline(myfile1, line);
             myfile1 >> int_line;
             cells_center_y.push_back(int_line);
@@ -112,6 +100,7 @@ int main(){
     double beta = 2;
     double rho = 0.1;
     double Q = pow(10,6);
+    double E = 1.5;
     vector<double> zeroVec(n,0.0);
     vector<double> onesVec(n,1.0);
     vector<int> zeroVec_i(n,1);
@@ -310,12 +299,42 @@ int main(){
             }
             cout << endl;
         } */
+        //=============================== Ranked Ant system ==================
+        vector<int> ranks(ant_mileage.size(),0);        // Ranks array to store ranks of ant mileage
+        vector<double> ant_mileage_sort = ant_mileage;
+        vector<int> ranks_value;
+
+        sort(ant_mileage_sort.begin(),ant_mileage_sort.end());
+        int count = 1;
+        ranks_value.push_back(count);
+        // produce sorted rank values according to the sorted ant mileage
+        for(i = 1; i < ant_mileage_sort.size(); ++i){
+            if(ant_mileage_sort[i] > ant_mileage_sort[i-1]){
+                ++count;
+                ranks_value.push_back(count);
+            }else{
+                ranks_value.push_back(count);
+            }
+        }
+        ++count;        // increment count to substract
+        for(i = 0; i < ranks.size(); ++i){
+            ranks[i] = ranks_value[ find(ant_mileage_sort.begin(), ant_mileage_sort.end(), ant_mileage[i]) - ant_mileage_sort.begin()];
+            ranks[i] = count - ranks[i];
+        }
+        /* cout << " the ranks vector is " << endl;
+        for(auto it = ranks.begin(); it!= ranks.end(); ++it){
+            cout << " " << *it << " ";
+        }
+        cout << endl; */
+        //===================================================================
+        
         for(i = 0; i < m; ++i){
             for(j = 0; j < n-1 ; ++j){
-                Delta_Tau[ Tabu[j][i] ][ Tabu[j+1][i] ] += Q/ant_mileage[i];
+                Delta_Tau[ Tabu[j][i] ][ Tabu[j+1][i] ] += (Q/ant_mileage[i]) * ranks[i];
             }
-            Delta_Tau[ Tabu[n-1][i] ][ Tabu[0][i] ] += Q/ant_mileage[i];
+            Delta_Tau[ Tabu[n-1][i] ][ Tabu[0][i] ] += (Q/ant_mileage[i]) * ranks[i];
         }
+        
         /* for(i = 0; i < n; ++i){
             cout << " the " <<i<<" row is ";
             for(int j = 0; j < n; ++j){
@@ -323,7 +342,6 @@ int main(){
             }
             cout << endl;
         } */
-
         for(i = 0; i < n; ++i){
             for(j = 0; j < n; ++j){
                 Tau[i][j] *= (1.0-rho);
